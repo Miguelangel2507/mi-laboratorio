@@ -1,0 +1,42 @@
+feature,area,priority,original,clone,notes
+Alta con Apple / Google / email,onboarding,must,yes,no,alias único; contraseña mín. 8
+Preguntas de alta (alias objetivo moneda avisos),onboarding,should,yes,no,
+Gastos e ingresos ilimitados,movimientos,must,yes,no,
+Editar eliminar y buscar movimientos,movimientos,must,yes,no,lupa en Inicio
+Categorías por defecto (16 gasto 7 ingreso),movimientos,must,yes,no,nombres propios míos
+Categorías personalizadas,movimientos,should,yes,no,PRO en el original
+Multi-cuenta con saldo manual y negativo,cuentas,must,yes,no,
+Transferencias entre cuentas (no cuentan como gasto),cuentas,must,yes,no,
+Cuenta en su propia divisa,divisas,should,yes,no,
+62 divisas con conversión diaria,divisas,should,yes,no,tipos de cambio de una API gratuita
+Patrimonio neto del momento (cuentas),patrimonio,must,yes,no,
+Patrimonio con inversiones bienes y deudas,patrimonio,must,yes,no,PRO en el original
+Evolución del patrimonio por meses y años,patrimonio,should,yes,no,periodos pasados manuales
+Cartera de cripto con precio automático,inversiones,must,yes,no,CoinGecko u otro
+Acciones ETFs y fondos con búsqueda por ticker o ISIN,inversiones,must,yes,no,proveedor de datos a elegir
+Alta manual de activo sin precio,inversiones,must,yes,no,
+Compras y ventas con precio medio y P&L,inversiones,should,yes,no,
+Gráfico de cartera por tipo de activo,inversiones,should,yes,no,
+Bienes sin cotización (inmueble coche arte),inversiones,should,yes,no,
+Deudas (hipoteca préstamo) que restan,inversiones,should,yes,no,
+Estadísticas por día semana mes año,estadísticas,must,yes,no,
+Salud del periodo (ahorro ticket medio proyección),estadísticas,could,yes,no,
+Gráficas y desglose por categoría,estadísticas,should,yes,no,
+Presupuestos por categoría con avisos 80 y 100 %,presupuestos,should,yes,no,
+Metas de ahorro con avisos,metas,should,yes,no,
+Recurrentes y transferencias programadas,automatización,should,yes,no,
+Escanear recibo con OCR local,automatización,could,yes,no,
+Importar CSV con vista previa y deshacer,datos,should,yes,no,
+Exportar CSV,datos,should,yes,no,
+Notificaciones y recordatorios,avisos,could,yes,no,
+Modo discreto (ocultar saldos),privacidad,should,yes,no,
+Bloqueo biométrico,privacidad,should,yes,no,
+Tema claro y oscuro,ajustes,should,yes,no,
+6 idiomas,ajustes,could,yes,no,empezar solo en español
+Racha de días apuntando,engagement,could,yes,no,
+Widgets en pantalla de inicio,nativo,could,yes,no,solo app nativa
+Registro por doble toque trasero (iPhone),nativo,skip,yes,no,solo nativo iOS; no replicable
+Registro automático con Apple Pay / Google Wallet,nativo,skip,yes,no,solo nativo
+Empezar de cero y eliminar cuenta,cuenta,must,yes,no,
+Logo marca mascota y textos de Neto,marca,skip,yes,no,propiedad de Neto; uso nombre y arte propios
+Conexión bancaria,integraciones,skip,no,no,Neto tampoco la tiene
