@@ -1,0 +1,25 @@
+@import './tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-bg text-text font-sans text-body antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+  input, select, button, textarea { font: inherit; color: inherit; }
+  .num { font-variant-numeric: tabular-nums; }
+}
+@layer components {
+  .bar-blur { background: var(--blur-bar-bg); backdrop-filter: var(--blur-bar); -webkit-backdrop-filter: var(--blur-bar); }
+  .card { @apply bg-surface rounded-lg shadow-card; }
+  .field { @apply w-full min-h-tap bg-surface-2 rounded-md px-4 outline-none; }
+  .btn { @apply min-h-tap rounded-md px-5 font-semibold disabled:opacity-50; }
+  .btn-primary { @apply btn bg-accent text-on-accent; }
+  .btn-secondary { @apply btn bg-surface-2; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

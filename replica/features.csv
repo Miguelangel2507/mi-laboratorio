@@ -1,19 +1,19 @@
 feature,area,priority,original,clone,notes
 Alta con Apple / Google / email,onboarding,must,yes,no,alias único; contraseña mín. 8
-Preguntas de alta (alias objetivo moneda avisos),onboarding,should,yes,no,
-Gastos e ingresos ilimitados,movimientos,must,yes,no,
+Preguntas de alta (alias objetivo moneda avisos),onboarding,should,yes,partial,solo moneda principal
+Gastos e ingresos ilimitados,movimientos,must,yes,yes,
 Editar eliminar y buscar movimientos,movimientos,must,yes,no,lupa en Inicio
-Categorías por defecto (16 gasto 7 ingreso),movimientos,must,yes,no,nombres propios míos
+Categorías por defecto (16 gasto 7 ingreso),movimientos,must,yes,yes,16+7 con nombres propios
 Categorías personalizadas,movimientos,should,yes,no,PRO en el original
-Multi-cuenta con saldo manual y negativo,cuentas,must,yes,no,
-Transferencias entre cuentas (no cuentan como gasto),cuentas,must,yes,no,
+Multi-cuenta con saldo manual y negativo,cuentas,must,yes,yes,
+Transferencias entre cuentas (no cuentan como gasto),cuentas,must,yes,partial,misma divisa; entre divisas pendiente
 Cuenta en su propia divisa,divisas,should,yes,no,
 62 divisas con conversión diaria,divisas,should,yes,no,tipos de cambio de una API gratuita
-Patrimonio neto del momento (cuentas),patrimonio,must,yes,no,
+Patrimonio neto del momento (cuentas),patrimonio,must,yes,partial,solo cuentas en la moneda principal; falta conversión
 Patrimonio con inversiones bienes y deudas,patrimonio,must,yes,no,PRO en el original
 Evolución del patrimonio por meses y años,patrimonio,should,yes,no,periodos pasados manuales
 Cartera de cripto con precio automático,inversiones,must,yes,no,CoinGecko u otro
-Acciones ETFs y fondos con búsqueda por ticker o ISIN,inversiones,must,yes,no,proveedor de datos a elegir
+Acciones ETFs y fondos con búsqueda por ticker o ISIN,inversiones,must,yes,partial,lee precios de la hoja; falta alta de activos y buscador
 Alta manual de activo sin precio,inversiones,must,yes,no,
 Compras y ventas con precio medio y P&L,inversiones,should,yes,no,
 Gráfico de cartera por tipo de activo,inversiones,should,yes,no,
@@ -29,9 +29,9 @@ Escanear recibo con OCR local,automatización,could,yes,no,
 Importar CSV con vista previa y deshacer,datos,should,yes,no,
 Exportar CSV,datos,should,yes,no,
 Notificaciones y recordatorios,avisos,could,yes,no,
-Modo discreto (ocultar saldos),privacidad,should,yes,no,
+Modo discreto (ocultar saldos),privacidad,should,yes,yes,botón y pulsación larga
 Bloqueo biométrico,privacidad,should,yes,no,
-Tema claro y oscuro,ajustes,should,yes,no,
+Tema claro y oscuro,ajustes,should,yes,yes,automático o manual
 6 idiomas,ajustes,could,yes,no,empezar solo en español
 Racha de días apuntando,engagement,could,yes,no,
 Widgets en pantalla de inicio,nativo,could,yes,no,solo app nativa
