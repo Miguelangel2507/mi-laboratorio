@@ -1,0 +1,152 @@
+{
+  "_about": "Tokens propios del clon personal. Inspirados en las pautas de interfaz de Apple (roles de color del sistema, listas agrupadas, barras translúcidas), sin colores, iconos ni textos de Neto. Los nombres de rol se mantienen; replica-brand solo cambia valores.",
+  "color": {
+    "bg": "#000000",
+    "surface": "#1C1C1E",
+    "surface-2": "#2C2C2E",
+    "border": "#3A3A3C",
+    "border-input": "#8E8E93",
+    "text": "#FFFFFF",
+    "text-muted": "#A1A1A8",
+    "accent": "#3DD6B0",
+    "on-accent": "#04241D",
+    "danger": "#FF6B62",
+    "success": "#4CD07A",
+    "warning": "#F5B84A",
+    "income": "#4CD07A",
+    "expense": "#FFFFFF"
+  },
+  "pairs": [
+    [
+      "text",
+      "bg"
+    ],
+    [
+      "text",
+      "surface"
+    ],
+    [
+      "text-muted",
+      "bg"
+    ],
+    [
+      "text-muted",
+      "surface"
+    ],
+    [
+      "on-accent",
+      "accent"
+    ],
+    [
+      "accent",
+      "bg"
+    ],
+    [
+      "accent",
+      "surface"
+    ],
+    [
+      "danger",
+      "surface"
+    ],
+    [
+      "success",
+      "surface"
+    ],
+    [
+      "warning",
+      "surface"
+    ],
+    [
+      "income",
+      "surface"
+    ],
+    [
+      "border-input",
+      "surface",
+      "ui"
+    ],
+    [
+      "accent",
+      "surface",
+      "ui"
+    ]
+  ],
+  "font": {
+    "sans": "-apple-system, BlinkMacSystemFont, \"SF Pro Text\", Inter, system-ui, Roboto, sans-serif",
+    "mono": "ui-monospace, SFMono-Regular, Menlo, monospace"
+  },
+  "type": {
+    "caption": {
+      "size": 12,
+      "line": 16,
+      "weight": 500
+    },
+    "footnote": {
+      "size": 13,
+      "line": 18,
+      "weight": 400
+    },
+    "body": {
+      "size": 17,
+      "line": 22,
+      "weight": 400
+    },
+    "headline": {
+      "size": 17,
+      "line": 22,
+      "weight": 600
+    },
+    "title": {
+      "size": 22,
+      "line": 28,
+      "weight": 700
+    },
+    "large-title": {
+      "size": 34,
+      "line": 41,
+      "weight": 700
+    },
+    "balance": {
+      "size": 44,
+      "line": 50,
+      "weight": 700
+    }
+  },
+  "space": [
+    0,
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    48
+  ],
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow": {
+    "card": "0 0 0 rgba(0,0,0,0)",
+    "pop": "0 12px 40px rgba(0,0,0,.6)"
+  },
+  "blur": {
+    "bar": "saturate(180%) blur(20px)",
+    "bar-bg": "rgba(28,28,30,.78)"
+  },
+  "layout": {
+    "tab-bar": 49,
+    "nav-bar": 44,
+    "min-tap": 44,
+    "max-width": 560
+  },
+  "motion": {
+    "fast": "120ms",
+    "base": "220ms",
+    "ease": "cubic-bezier(.25,.1,.25,1)"
+  }
+}
