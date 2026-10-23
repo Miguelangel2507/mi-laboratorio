@@ -9,7 +9,7 @@ export function accountBalance(account: Account, txs: Transaction[]): number {
       if (t.kind === 'income') cents += t.amountCents;
       else cents -= t.amountCents; // gasto o transferencia saliente
     } else if (t.kind === 'transfer' && t.transferAccountId === account.id) {
-      cents += t.amountCents;
+      cents += t.toAmountCents ?? t.amountCents;
     }
   }
   return cents;

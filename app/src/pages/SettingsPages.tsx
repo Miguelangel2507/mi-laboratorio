@@ -10,18 +10,12 @@ import { toCents } from '../lib/money';
 import { exportBackup, restoreBackup, summarizeBackup, validateBackup, wipeAll, type Backup } from '../lib/backup';
 import { aiInstructions, commitImport, CSV_TEMPLATE, MAX_IMPORT_ROWS, parseImport, transactionsToCsv, undoImport, type ImportRow } from '../lib/csvio';
 import { checkPin, clearPin, setPin } from '../lib/lock';
+import { download, fmtBytes, requestPersistence, shareOrDownload, storageStatus, type StorageStatus } from '../lib/storage';
 import { useFx, useMoney, useSetting } from '../lib/hooks';
 import { BackHeader, DangerButton, Field, Group, Row, Section, Skeleton, Banner, fmtDate } from '../components/ui';
 import { EmptyState } from '../components/Layout';
 import { CURRENCIES } from './Welcome';
 import { FREQ } from './Add';
-
-function download(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement('a');
-  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /* ---------- Categorías ---------- */
 export function Categories() {
@@ -135,6 +129,7 @@ export function Goals() {
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
   const [add, setAdd] = useState<Record<number, string>>({});
+  const [note, setNote] = useState('');
   const [error, setError] = useState('');
   if (!goals) return <Skeleton />;
   async function create(e: FormEvent) {
@@ -148,6 +143,7 @@ export function Goals() {
   return (
     <>
       <BackHeader title="Metas de ahorro" to="/settings" />
+      {note && <Banner>{note}</Banner>}
       {goals.length === 0 ? <EmptyState title="Sin metas" text="Crea una hucha con un objetivo y ve sumando aportaciones." /> : (
         <div className="flex flex-col gap-3">
           {goals.map((g) => {
@@ -162,6 +158,9 @@ export function Goals() {
                   e.preventDefault(); const c = toCents(add[g.id!] ?? '');
                   if (c === null || c === 0) return;
                   await db.goals.update(g.id!, { contributions: [...g.contributions, { date: todayISO(), cents: c }] });
+                  const before = goalSaved(g) / g.targetCents, after = (goalSaved(g) + c) / g.targetCents;
+                  const hit = [1, 0.75, 0.5].find((t) => before < t && after >= t);
+                  setNote(hit ? `¡${g.name}: has llegado al ${Math.round(hit * 100)} %!` : '');
                   setAdd({ ...add, [g.id!]: '' });
                 }}>
                   <input aria-label={`Aportación a ${g.name}`} className="field num flex-1" inputMode="decimal" placeholder="Aportar (negativo para retirar)" value={add[g.id!] ?? ''} onChange={(e) => setAdd({ ...add, [g.id!]: e.target.value })} />
@@ -260,13 +259,16 @@ export function DataPage() {
   const [csvText, setCsvText] = useState('');
   const [tooMany, setTooMany] = useState(false);
   const [aiCopied, setAiCopied] = useState(false);
+  const [st, setSt] = useState<StorageStatus | null>(null);
+  useEffect(() => { void storageStatus().then(setSt); }, []);
   if (!accounts || !cats || !batches) return <Skeleton />;
 
   async function doExport() {
     const b = await exportBackup(db, { includeSheetUrl: includeUrl });
-    download(`patrimonio-copia-${todayISO()}.json`, JSON.stringify(b, null, 2), 'application/json');
+    const ok = await shareOrDownload(`patrimonio-copia-${todayISO()}.json`, JSON.stringify(b, null, 2), 'application/json');
+    if (!ok) return setMsg('Copia cancelada: no se ha guardado.');
     await setSetting('lastBackup', new Date().toISOString());
-    setMsg('Copia descargada. Guárdala en iCloud Drive o envíatela por correo.');
+    setMsg('Copia hecha. Si no la guardaste en Archivos (iCloud Drive) o no te la enviaste, hazlo ahora: es tu única protección.');
   }
   async function pickJson(f: File | undefined) {
     if (!f) return; setMsg('');
@@ -293,11 +295,21 @@ export function DataPage() {
       <BackHeader title="Copia, exportar e importar" to="/settings" />
       {msg && <Banner>{msg}</Banner>}
 
+      <Section title="Protección de tus datos">
+        <Group>
+          <Row right={<span className={st?.standalone ? 'text-income' : 'text-warning'}>{st ? (st.standalone ? 'Sí' : 'No') : '…'}</span>}>Instalada en la pantalla de inicio</Row>
+          <Row right={<span className={st?.persisted ? 'text-income' : 'text-warning'}>{st ? (st.persisted === null ? 'No disponible' : st.persisted ? 'Sí' : 'No') : '…'}</span>}>Almacenamiento protegido</Row>
+          <Row right={<span className="num text-text-muted">{st?.usageBytes != null ? fmtBytes(st.usageBytes) : '—'}</span>}>Espacio usado</Row>
+        </Group>
+        {st && !st.standalone && st.ios && <p className="mt-2 text-footnote text-warning">Safari borra los datos de una web que no abres en 7 días, pero no los de una app instalada. En Safari: Compartir &gt; Añadir a pantalla de inicio, y abre la app desde ahí.</p>}
+        {st && st.persisted === false && st.standalone && <button className="btn-secondary mt-2 w-full" onClick={async () => { await requestPersistence(); setSt(await storageStatus()); }}>Pedir protección de nuevo</button>}
+      </Section>
+
       <Section title="Copia de seguridad (JSON)" hint={last ? `Última copia: ${new Date(last).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Aún no has hecho ninguna copia.'}>
         <div className="card flex flex-col gap-3 p-4">
           <p className="text-footnote text-text-muted">Incluye cuentas, movimientos, inversiones, presupuestos, metas y recurrentes. Es la única copia de tus datos: hazla cada pocas semanas.</p>
           <label className="flex min-h-tap items-center justify-between"><span>Incluir el enlace de mi hoja</span><input type="checkbox" role="switch" className="size-6" checked={includeUrl} onChange={(e) => setIncludeUrl(e.target.checked)} /></label>
-          <button className="btn-primary" onClick={doExport}>Descargar copia</button>
+          <button className="btn-primary" onClick={doExport}>Guardar copia</button>
           <button className="btn-secondary" onClick={() => file.current?.click()}>Restaurar desde un archivo…</button>
           <input ref={file} type="file" accept="application/json,.json" hidden aria-label="Archivo de copia" onChange={(e) => { void pickJson(e.target.files?.[0]); e.target.value = ''; }} />
         </div>

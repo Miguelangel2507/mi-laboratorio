@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, type Frequency, type Kind } from '../lib/db';
+import { convertCents } from '../lib/fx';
+import { useFx } from '../lib/hooks';
 import { todayISO } from '../lib/domain';
 import { toCents } from '../lib/money';
 import { DangerButton, Seg } from '../components/ui';
@@ -27,6 +29,9 @@ export default function Add() {
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState('');
   const [freq, setFreq] = useState<Frequency | 'none'>('none');
+  const [received, setReceived] = useState('');
+  const [receivedTouched, setReceivedTouched] = useState(false);
+  const { rates } = useFx();
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(!editId);
   const [missing, setMissing] = useState(false);
@@ -36,7 +41,8 @@ export default function Add() {
     void db.transactions.get(editId).then((t) => {
       if (!t) return setMissing(true);
       setKind(t.kind); setAmount((t.amountCents / 100).toFixed(2).replace('.', ',')); setAccountId(t.accountId);
-      setToId(t.transferAccountId ?? ''); setCategoryId(t.categoryId ?? ''); setDate(t.date); setNote(t.note); setLoaded(true);
+      setToId(t.transferAccountId ?? '');
+      if (t.toAmountCents !== undefined) { setReceived((t.toAmountCents / 100).toFixed(2).replace('.', ',')); setReceivedTouched(true); } setCategoryId(t.categoryId ?? ''); setDate(t.date); setNote(t.note); setLoaded(true);
     });
   }, [editId]);
 
@@ -44,6 +50,15 @@ export default function Add() {
   if (!accounts || !cats || !loaded) return null;
   const options = cats.filter((c) => c.kind === kind);
   const account = accounts.find((a) => a.id === (accountId === '' ? accounts[0]?.id : accountId));
+  const dest = kind === 'transfer' ? accounts.find((x) => x.id === toId) : undefined;
+  const cross = !!account && !!dest && dest.currency !== account.currency;
+  const suggested = (() => {
+    const c = toCents(amount);
+    if (!cross || !account || !dest || c === null || c <= 0) return '';
+    const v = convertCents(c, account.currency, dest.currency, rates);
+    return v === null ? '' : (v / 100).toFixed(2).replace('.', ',');
+  })();
+  const receivedShown = receivedTouched ? received : suggested;
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -53,12 +68,19 @@ export default function Add() {
     if (kind === 'transfer') {
       const dest = accounts!.find((a) => a.id === toId);
       if (!dest || dest.id === account.id) return setError('Elige una cuenta de destino distinta.');
-      if (dest.currency !== account.currency) return setError('Las transferencias entre divisas distintas no están disponibles todavía.');
+    }
+    let toAmountCents: number | undefined;
+    if (cross && dest) {
+      const r = toCents(receivedShown);
+      if (r === null || r <= 0) return setError(`Indica el importe que recibe la cuenta destino en ${dest.currency}.`);
+      if (!editId && freq !== 'none') return setError('Las transferencias entre divisas no se pueden repetir.');
+      toAmountCents = r;
     }
     const base = {
       date, accountId: account.id!, kind, amountCents: cents, currency: account.currency, note: note.trim(),
       categoryId: kind === 'transfer' ? null : categoryId === '' ? (options.at(-1)?.id ?? null) : categoryId,
       ...(kind === 'transfer' ? { transferAccountId: Number(toId) } : {}),
+      ...(toAmountCents !== undefined ? { toAmountCents } : {}),
     };
     if (editId) {
       const old = await db.transactions.get(editId);
@@ -113,6 +135,13 @@ export default function Add() {
               <option value="">Elige…</option>
               {accounts.filter((a) => a.id !== account?.id).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
+          </label>
+        )}
+        {cross && dest && (
+          <label className="flex min-h-tap items-center justify-between gap-3 px-4">
+            <span>Recibe ({dest.currency})</span>
+            <input aria-label={`Importe recibido en ${dest.currency}`} inputMode="decimal" className="num w-32 bg-transparent text-right outline-none"
+              value={receivedShown} placeholder="0,00" onChange={(e) => { setReceived(e.target.value); setReceivedTouched(true); }} />
           </label>
         )}
         <label className="flex min-h-tap items-center justify-between gap-3 px-4">

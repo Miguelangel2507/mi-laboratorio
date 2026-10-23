@@ -10,7 +10,9 @@ export interface Category { id?: number; kind: 'expense' | 'income'; name: strin
 export interface Transaction {
   id?: number; date: string; accountId: number; categoryId: number | null; kind: Kind;
   amountCents: number; currency: string; note: string; source: 'manual' | 'import' | 'recurring';
-  transferAccountId?: number; importBatchId?: number; recurringId?: number;
+  transferAccountId?: number;
+  /** Transferencias entre divisas: importe que llega a la cuenta destino, en su divisa. */
+  toAmountCents?: number; importBatchId?: number; recurringId?: number;
 }
 export type AssetType = 'fund' | 'stock' | 'etf' | 'crypto' | 'other' | 'debt';
 export interface Asset {

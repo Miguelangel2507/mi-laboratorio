@@ -6,6 +6,7 @@ import { db, setSetting } from '../lib/db';
 import { todayISO } from '../lib/domain';
 import { budgetStatus } from '../lib/budget';
 import { streak } from '../lib/stats';
+import { isIOS, isStandalone } from '../lib/storage';
 import { useFx, useMoney, useNetWorth, useSetting } from '../lib/hooks';
 import { Banner, Group, Skeleton, fmtDate } from '../components/ui';
 import { EmptyState, LargeTitle } from '../components/Layout';
@@ -13,6 +14,7 @@ import { EmptyState, LargeTitle } from '../components/Layout';
 export default function Home() {
   const hide = useSetting<boolean>('hideBalances', false) ?? false;
   const lastBackup = useSetting<string | null>('lastBackup', null);
+  const installDismissed = useSetting<boolean>('installDismissed', false);
   const money = useMoney();
   const { main, data, result } = useNetWorth();
   const { conv } = useFx();
@@ -20,7 +22,7 @@ export default function Home() {
   const budgets = useLiveQuery(() => db.budgets.toArray(), []);
   const timer = useRef<number | undefined>(undefined);
 
-  if (!data || !result || !cats || !budgets || lastBackup === undefined) return <Skeleton h="h-40" />;
+  if (!data || !result || !cats || !budgets || lastBackup === undefined || installDismissed === undefined) return <Skeleton h="h-40" />;
 
   const today = todayISO();
   const catName = (id: number | null) => cats.find((c) => c.id === id)?.name ?? 'Sin categoría';
@@ -29,16 +31,21 @@ export default function Home() {
     .map((b) => ({ b, s: budgetStatus(b, data.txs, today, (t) => conv(t.amountCents, t.currency)) }))
     .filter((x) => x.s.level !== 'ok');
   const days = lastBackup ? (Date.now() - new Date(lastBackup).getTime()) / 864e5 : Infinity;
-  const needsBackup = data.txs.length + data.accounts.length > 0 && days > 14;
+  const needsBackup = data.txs.length + data.accounts.length > 0 && days > 7;
   const n = streak(data.txs, today);
 
   return (
     <>
       <LargeTitle action={<Link to="/settings" aria-label="Ajustes" className="grid min-h-tap min-w-tap place-items-center"><Cog size={22} /></Link>}>Inicio</LargeTitle>
 
+      {isIOS() && !isStandalone() && !installDismissed && (
+        <Banner tone="warn" action={<button className="min-h-tap font-semibold text-accent" onClick={() => setSetting('installDismissed', true)}>Entendido</button>}>
+          Instálala para que el iPhone no borre tus datos: pulsa Compartir y «Añadir a pantalla de inicio».
+        </Banner>
+      )}
       {needsBackup && (
         <Banner tone="warn" action={<Link to="/settings/data" className="font-semibold text-accent">Exportar</Link>}>
-          {lastBackup ? 'Hace más de 2 semanas de tu última copia.' : 'Aún no has hecho ninguna copia de seguridad.'}
+          {lastBackup ? 'Hace más de una semana de tu última copia.' : 'Aún no has hecho ninguna copia de seguridad.'}
         </Banner>
       )}
       {alerts.map(({ b, s }) => (

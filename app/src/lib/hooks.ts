@@ -7,6 +7,7 @@ import { runRecurring } from './recurring';
 import { todayISO } from './domain';
 import { computeNetWorth } from './portfolio';
 import { refreshQuotesIfStale } from './quotes';
+import { requestPersistence } from './storage';
 
 export function useSetting<T>(key: string, fallback: T): T | undefined {
   return useLiveQuery(() => getSetting<T>(key, fallback), [key]);
@@ -19,7 +20,7 @@ export function useInit() {
       await runRecurring(db, todayISO());
       await refreshRates();
       await refreshQuotesIfStale();
-      try { await navigator.storage?.persist?.(); } catch { /* no disponible */ }
+      await requestPersistence();
     })();
   }, []);
 }

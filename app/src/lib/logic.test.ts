@@ -241,6 +241,25 @@ describe('CSV de movimientos', () => {
 });
 
 import { computeNetWorth } from './portfolio';
+import { accountBalance } from './domain';
+describe('transferencias entre divisas', () => {
+  const eur: Account = { id: 1, name: 'EUR', initialCents: 100000, currency: 'EUR', color: '', archived: 0, createdAt: '' };
+  const usd: Account = { id: 2, name: 'USD', initialCents: 0, currency: 'USD', color: '', archived: 0, createdAt: '' };
+  const tr = id({ kind: 'transfer', accountId: 1, transferAccountId: 2, amountCents: 10000, toAmountCents: 11000, categoryId: null });
+  it('el destino recibe el importe convertido, no el original', () => {
+    expect(accountBalance(eur, [tr])).toBe(90000);
+    expect(accountBalance(usd, [tr])).toBe(11000);
+  });
+  it('sin importe convertido (misma divisa) recibe lo mismo', () => {
+    const same = { ...tr, toAmountCents: undefined };
+    expect(accountBalance(usd, [same])).toBe(10000);
+  });
+  it('el patrimonio total apenas cambia: solo por el tipo aplicado', () => {
+    const r = computeNetWorth({ accounts: [eur, usd], txs: [tr], assets: [], trades: [], quotes: [] }, 'EUR', { EUR: 1, USD: 1.1 });
+    expect(r.cents).toBe(100000);
+  });
+});
+
 describe('patrimonio completo', () => {
   const acc = (id: number, cur: string, c: number): Account => ({ id, name: 'a' + id, initialCents: c, currency: cur, color: '', archived: 0, createdAt: '' });
   const q: Quote = { key: 'F', name: 'F', priceE5: 1200000, priceDate: '2026-10-22', fetchedAt: '' };
