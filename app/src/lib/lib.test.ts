@@ -10,6 +10,11 @@ describe('money', () => {
     expect(parseDecimal('12.50')).toBe(12.5);
     expect(parseDecimal('1.234,56')).toBe(1234.56);
     expect(parseDecimal('abc')).toBeNull();
+    expect(parseDecimal('1.000')).toBe(1000);
+    expect(parseDecimal('12.345.678')).toBe(12345678);
+    expect(parseDecimal('0.125')).toBe(0.125);
+    expect(parseDecimal('16.9271')).toBe(16.9271);
+    expect(parseDecimal('1.000', { dotThousands: false })).toBe(1);
     expect(parseDecimal('')).toBeNull();
   });
   it('convierte a céntimos sin errores de coma flotante', () => {

@@ -9,6 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Mi Patrimonio',
         short_name: 'Patrimonio',
@@ -16,7 +17,11 @@ export default defineConfig({
         display: 'standalone',
         background_color: '#F2F2F7',
         theme_color: '#F2F2F7',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],

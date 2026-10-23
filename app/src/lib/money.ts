@@ -1,15 +1,20 @@
-/** Interpreta "12,50", "12.50" o "1.234,56". Devuelve null si no es un número. */
-export function parseDecimal(input: string): number | null {
+/**
+ * Interpreta "12,50", "12.50", "1.234,56" y "1.000" (mil, como se escribe en español).
+ * Con `dotThousands: false` el punto es siempre decimal (para CSV de otras fuentes).
+ */
+export function parseDecimal(input: string, opts: { dotThousands?: boolean } = {}): number | null {
+  const { dotThousands = true } = opts;
   let s = input.trim().replace(/\s/g, '');
   if (!s) return null;
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (dotThousands && /^-?[1-9]\d{0,2}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
   if (!/^-?\d*\.?\d+$/.test(s)) return null;
   return Number(s);
 }
 
 /** Céntimos redondeados "half up" sin pasar por coma flotante (1,005 a 101). */
-export function toCents(input: string): number | null {
-  const n = parseDecimal(input);
+export function toCents(input: string, opts?: { dotThousands?: boolean }): number | null {
+  const n = parseDecimal(input, opts);
   if (n === null) return null;
   const neg = n < 0;
   const [int, frac = ''] = Math.abs(n).toFixed(10).replace(/0+$/, '').split('.');
