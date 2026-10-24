@@ -1,14 +1,15 @@
 import type { Transaction } from './db';
 import { daysBetween, inRange, type Range } from './dates';
+import { todayISO } from './domain';
 
 export interface Summary { income: number; expense: number; balance: number; count: number; expenseCount: number; byCategory: Map<number | null, number> }
 
-/** `toMain` convierte cada movimiento a la moneda principal (devuelve null si no hay cambio). Las transferencias no cuentan. */
-export function summarize(txs: Transaction[], from: string, to: string, toMain: (t: Transaction) => number | null): Summary {
+/** `toMain` convierte cada movimiento a la moneda principal (null si no hay cambio). No cuentan transferencias, inversiones ni lo futuro. */
+export function summarize(txs: Transaction[], from: string, to: string, toMain: (t: Transaction) => number | null, today: string = todayISO()): Summary {
   let income = 0, expense = 0, count = 0, expenseCount = 0;
   const byCategory = new Map<number | null, number>();
   for (const t of txs) {
-    if (t.kind === 'transfer' || !inRange(t.date, from, to)) continue;
+    if (t.kind === 'transfer' || t.kind === 'invest' || t.date > today || !inRange(t.date, from, to)) continue;
     const v = toMain(t);
     if (v === null) continue;
     count++;

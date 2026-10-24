@@ -1,37 +1,42 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { BarChart3, Home, Landmark, LineChart, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../lib/db';
 
 const tab = 'flex flex-1 flex-col items-center justify-center gap-0.5 min-h-tap text-caption';
 
-function Tab({ to, icon, label }: { to: string; icon: ReactNode; label: string }) {
+function Tab({ to, icon, label, badge = 0 }: { to: string; icon: ReactNode; label: string; badge?: number }) {
   return (
-    <NavLink to={to} end={to === '/'} className={({ isActive }) => `${tab} ${isActive ? 'text-accent' : 'text-text-muted'}`}>
+    <NavLink to={to} end={to === '/'} className={({ isActive }) => `${tab} relative py-1.5 ${isActive ? 'text-accent' : 'text-text-muted'}`}
+      aria-label={badge > 0 ? `${label}, ${badge} por confirmar` : undefined}>
       {icon}
       <span>{label}</span>
+      {badge > 0 && <span aria-hidden="true" className="absolute right-1/4 top-0.5 grid min-w-4 place-items-center rounded-pill bg-danger px-1 text-[10px] font-bold leading-4 text-on-accent">{badge}</span>}
     </NavLink>
   );
 }
 
 export function Layout() {
   const nav = useNavigate();
+  const pending = useLiveQuery(() => db.planRuns.where('status').equals('pending').count(), []) ?? 0;
   return (
     <div className="mx-auto flex h-full max-w-[560px] flex-col">
-      <main className="flex-1 overflow-y-auto px-4 pb-28 pt-[max(env(safe-area-inset-top),16px)]">
+      <main className="flex-1 overflow-y-auto px-4 pb-32 pt-[max(env(safe-area-inset-top),16px)]">
         <Outlet />
       </main>
-      <nav aria-label="Principal" className="bar-blur fixed inset-x-0 bottom-0 border-t border-border pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto flex max-w-[560px] items-center">
+      <nav aria-label="Principal" className="pointer-events-none fixed inset-x-0 bottom-0 z-10 px-4 pb-[max(env(safe-area-inset-bottom),12px)]">
+        <div className="bar-blur pointer-events-auto mx-auto flex max-w-[480px] items-center rounded-pill border border-border px-2 shadow-pop">
           <Tab to="/" icon={<Home size={24} />} label="Inicio" />
           <Tab to="/stats" icon={<BarChart3 size={24} />} label="Estadísticas" />
           <div className="flex flex-1 justify-center">
             <button aria-label="Añadir movimiento" onClick={() => nav('/add')}
-              className="-mt-5 grid size-14 place-items-center rounded-pill bg-accent text-on-accent shadow-pop">
-              <Plus size={28} />
+              className="grid size-12 place-items-center rounded-pill bg-accent text-on-accent shadow-card">
+              <Plus size={26} />
             </button>
           </div>
           <Tab to="/accounts" icon={<Landmark size={24} />} label="Cuentas" />
-          <Tab to="/investments" icon={<LineChart size={24} />} label="Cartera" />
+          <Tab to="/investments" icon={<LineChart size={24} />} label="Cartera" badge={pending} />
         </div>
       </nav>
     </div>

@@ -1,5 +1,5 @@
 import type { Account, Asset, Quote, Trade, Transaction } from './db';
-import { accountBalance } from './domain';
+import { accountBalance, todayISO } from './domain';
 import { convertCents, type Rates } from './fx';
 import { assetView, signedValue, type AssetView } from './invest';
 
@@ -7,13 +7,13 @@ export interface NetWorthResult { cents: number; accountsCents: number; assetsCe
 
 export function computeNetWorth(
   d: { accounts: Account[]; txs: Transaction[]; assets: Asset[]; trades: Trade[]; quotes: Quote[] },
-  main: string, rates?: Rates,
+  main: string, rates?: Rates, today: string = todayISO(),
 ): NetWorthResult {
   const qmap = new Map(d.quotes.map((q) => [q.key, q]));
   let accountsCents = 0, assetsCents = 0, excluded = 0;
   for (const a of d.accounts) {
     if (a.archived) continue;
-    const c = convertCents(accountBalance(a, d.txs), a.currency, main, rates);
+    const c = convertCents(accountBalance(a, d.txs, today), a.currency, main, rates);
     if (c === null) excluded++; else accountsCents += c;
   }
   const views = d.assets.map((a) => assetView(a, d.trades, qmap));

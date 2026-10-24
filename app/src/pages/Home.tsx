@@ -15,6 +15,7 @@ export default function Home() {
   const hide = useSetting<boolean>('hideBalances', false) ?? false;
   const lastBackup = useSetting<string | null>('lastBackup', null);
   const installDismissed = useSetting<boolean>('installDismissed', false);
+  const pendingPlan = useLiveQuery(() => db.planRuns.where('status').equals('pending').count(), []);
   const money = useMoney();
   const { main, data, result } = useNetWorth();
   const { conv } = useFx();
@@ -22,11 +23,13 @@ export default function Home() {
   const budgets = useLiveQuery(() => db.budgets.toArray(), []);
   const timer = useRef<number | undefined>(undefined);
 
-  if (!data || !result || !cats || !budgets || lastBackup === undefined || installDismissed === undefined) return <Skeleton h="h-40" />;
+  if (!data || !result || !cats || !budgets || lastBackup === undefined || installDismissed === undefined || pendingPlan === undefined) return <Skeleton h="h-40" />;
 
   const today = todayISO();
   const catName = (id: number | null) => cats.find((c) => c.id === id)?.name ?? 'Sin categoría';
-  const recent = [...data.txs].sort((a, b) => b.date.localeCompare(a.date) || (b.id ?? 0) - (a.id ?? 0)).slice(0, 8);
+  const recent = data.txs.filter((t) => t.date <= today).sort((a, b) => b.date.localeCompare(a.date) || (b.id ?? 0) - (a.id ?? 0)).slice(0, 8);
+  const scheduled = data.txs.filter((t) => t.date > today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
+  const pendingRuns = pendingPlan ?? 0;
   const alerts = budgets
     .map((b) => ({ b, s: budgetStatus(b, data.txs, today, (t) => conv(t.amountCents, t.currency)) }))
     .filter((x) => x.s.level !== 'ok');
@@ -41,6 +44,11 @@ export default function Home() {
       {isIOS() && !isStandalone() && !installDismissed && (
         <Banner tone="warn" action={<button className="min-h-tap font-semibold text-accent" onClick={() => setSetting('installDismissed', true)}>Entendido</button>}>
           Instálala para que el iPhone no borre tus datos: pulsa Compartir y «Añadir a pantalla de inicio».
+        </Banner>
+      )}
+      {pendingRuns > 0 && (
+        <Banner tone="warn" action={<Link to="/investments/plan" className="font-semibold text-accent">Revisar</Link>}>
+          Tienes {pendingRuns} {pendingRuns === 1 ? 'aportación' : 'aportaciones'} de tu plan por confirmar. No cuentan en tu patrimonio hasta que las confirmes.
         </Banner>
       )}
       {needsBackup && (
@@ -89,6 +97,13 @@ export default function Home() {
       ) : (
         <TxList txs={recent} catName={catName} money={money} />
       )}
+      {scheduled.length > 0 && (
+        <>
+          <h2 className="mb-2 mt-6 text-footnote uppercase tracking-wide text-text-muted">Programados</h2>
+          <TxList txs={scheduled} catName={catName} money={money} />
+          <p className="mt-2 text-footnote text-text-muted">No cuentan en tus saldos hasta su fecha.</p>
+        </>
+      )}
       <p className="mt-6 text-center text-caption text-text-muted">Hoy es {fmtDate(today)}</p>
     </>
   );
@@ -96,19 +111,28 @@ export default function Home() {
 
 import type { Transaction } from '../lib/db';
 export function TxList({ txs, catName, money }: { txs: Transaction[]; catName: (id: number | null) => string; money: (c: number, cur: string) => string }) {
+  const today = todayISO();
   return (
     <Group>
-      {txs.map((t) => (
-        <Link key={t.id} to={`/tx/${t.id}`} className="flex min-h-tap items-center justify-between gap-3 px-4 py-2">
-          <div className="min-w-0">
-            <p className="truncate">{t.kind === 'transfer' ? 'Transferencia' : catName(t.categoryId)}</p>
-            <p className="truncate text-footnote text-text-muted">{t.date}{t.note ? ` · ${t.note}` : ''}{t.source !== 'manual' ? ` · ${t.source === 'import' ? 'importado' : 'recurrente'}` : ''}</p>
-          </div>
-          <span className={`num shrink-0 ${t.kind === 'income' ? 'text-income' : 'text-expense'}`}>
-            {t.kind === 'income' ? '+' : t.kind === 'expense' ? '−' : ''}{money(t.amountCents, t.currency)}
-          </span>
-        </Link>
-      ))}
+      {txs.map((t) => {
+        const inner = (
+          <>
+            <div className="min-w-0">
+              <p className="truncate">{t.kind === 'transfer' ? 'Transferencia' : t.kind === 'invest' ? 'Inversión' : catName(t.categoryId)}</p>
+              <p className="truncate text-footnote text-text-muted">
+                {t.date}{t.date > today ? ' · programado' : ''}{t.note ? ` · ${t.note}` : ''}{t.source === 'import' ? ' · importado' : t.source === 'recurring' ? ' · recurrente' : ''}
+              </p>
+            </div>
+            <span className={`num shrink-0 ${t.kind === 'income' ? 'text-income' : 'text-expense'}`}>
+              {t.kind === 'income' ? '+' : t.kind === 'transfer' ? '' : '−'}{money(t.amountCents, t.currency)}
+            </span>
+          </>
+        );
+        const cls = 'flex min-h-tap items-center justify-between gap-3 px-4 py-2';
+        return t.kind === 'invest'
+          ? <Link key={t.id} to="/investments/plan" className={cls}>{inner}</Link>
+          : <Link key={t.id} to={`/tx/${t.id}`} className={cls}>{inner}</Link>;
+      })}
     </Group>
   );
 }

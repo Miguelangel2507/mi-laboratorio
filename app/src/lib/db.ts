@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 
-export type Kind = 'expense' | 'income' | 'transfer';
+/** 'invest' = dinero que sale de una cuenta para comprar un activo: no es gasto y no cambia el patrimonio. */
+export type Kind = 'expense' | 'income' | 'transfer' | 'invest';
 
 export interface Setting { key: string; value: unknown }
 export interface Account {
@@ -12,7 +13,7 @@ export interface Transaction {
   amountCents: number; currency: string; note: string; source: 'manual' | 'import' | 'recurring';
   transferAccountId?: number;
   /** Transferencias entre divisas: importe que llega a la cuenta destino, en su divisa. */
-  toAmountCents?: number; importBatchId?: number; recurringId?: number;
+  toAmountCents?: number; importBatchId?: number; recurringId?: number; tradeId?: number;
 }
 export type AssetType = 'fund' | 'stock' | 'etf' | 'crypto' | 'other' | 'debt';
 export interface Asset {
@@ -33,6 +34,12 @@ export interface Recurring {
 export interface NetWorthPoint { id?: number; period: 'month' | 'year'; label: string; valueCents: number }
 export interface FxRate { base: string; quote: string; rate: number; fetchedAt: string }
 export interface ImportBatch { id?: number; createdAt: string; count: number }
+export interface PlanItem { id?: number; assetKey: string; name: string; amountCents: number; startMonth: string; active: 0 | 1 }
+export interface PlanRun {
+  id?: number; itemId: number; month: string; dueDate: string; amountCents: number;
+  status: 'pending' | 'confirmed' | 'skipped'; tradeId?: number; txId?: number; confirmedAt?: string;
+}
+export interface PlanConfig { day: number; accountId: number | null; active: boolean }
 export interface Quote { key: string; name: string; priceE5: number | null; priceDate: string | null; fetchedAt: string }
 
 class AppDB extends Dexie {
@@ -49,6 +56,8 @@ class AppDB extends Dexie {
   netWorth!: Table<NetWorthPoint, number>;
   fxRates!: Table<FxRate, [string, string]>;
   importBatches!: Table<ImportBatch, number>;
+  planItems!: Table<PlanItem, number>;
+  planRuns!: Table<PlanRun, number>;
 
   constructor(name = 'mi-patrimonio') {
     super(name);
@@ -68,6 +77,10 @@ class AppDB extends Dexie {
       netWorth: '++id, &[period+label]',
       fxRates: '&[base+quote], fetchedAt',
       importBatches: '++id, createdAt',
+    });
+    this.version(3).stores({
+      planItems: '++id, assetKey, active',
+      planRuns: '++id, status, dueDate, &[itemId+month]',
     });
   }
 }

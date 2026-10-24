@@ -2,11 +2,13 @@ import type { AppDB } from './db';
 
 export const BACKUP_TABLES = [
   'settings', 'accounts', 'categories', 'transactions', 'assets', 'trades',
-  'budgets', 'goals', 'recurring', 'netWorth', 'importBatches',
+  'budgets', 'goals', 'recurring', 'netWorth', 'importBatches', 'planItems', 'planRuns',
 ] as const;
+/** Tablas añadidas después: una copia antigua sin ellas sigue siendo válida (se restauran vacías). */
+const OPTIONAL: readonly string[] = ['planItems', 'planRuns'];
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export interface Backup { app: 'mi-patrimonio'; schemaVersion: number; exportedAt: string; data: Record<BackupTable, Record<string, unknown>[]> }
 
 const REQUIRED: Record<BackupTable, Record<string, 'string' | 'number' | 'boolean' | 'array'>> = {
@@ -21,13 +23,15 @@ const REQUIRED: Record<BackupTable, Record<string, 'string' | 'number' | 'boolea
   recurring: { kind: 'string', accountId: 'number', amountCents: 'number', frequency: 'string', nextRun: 'string' },
   netWorth: { period: 'string', label: 'string', valueCents: 'number' },
   importBatches: { createdAt: 'string' },
+  planItems: { assetKey: 'string', name: 'string', amountCents: 'number', startMonth: 'string' },
+  planRuns: { itemId: 'number', month: 'string', dueDate: 'string', amountCents: 'number', status: 'string' },
 };
 
 export async function exportBackup(d: AppDB, opts: { includeSheetUrl: boolean }): Promise<Backup> {
   const data = {} as Backup['data'];
   for (const t of BACKUP_TABLES) {
     let rows = (await (d[t] as { toArray(): Promise<unknown[]> }).toArray()) as Record<string, unknown>[];
-    if (t === 'settings' && !opts.includeSheetUrl) rows = rows.filter((r) => r.key !== 'sheetUrl');
+    if (t === 'settings') rows = rows.filter((r) => r.key !== 'alerts' && (opts.includeSheetUrl || r.key !== 'sheetUrl'));
     data[t] = rows;
   }
   return { app: 'mi-patrimonio', schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), data };
@@ -44,6 +48,7 @@ export function validateBackup(x: unknown): string[] {
   if (!b.data || typeof b.data !== 'object') return [...errs, 'Faltan los datos.'];
   for (const t of BACKUP_TABLES) {
     const rows = (b.data as Record<string, unknown>)[t];
+    if (rows === undefined && OPTIONAL.includes(t)) continue;
     if (!Array.isArray(rows)) { errs.push(`Falta la tabla ${t}.`); continue; }
     rows.forEach((r, i) => {
       if (!r || typeof r !== 'object') return errs.push(`${t}[${i}] no es un objeto.`);
@@ -68,14 +73,15 @@ export function summarizeBackup(b: Backup) {
 export async function restoreBackup(d: AppDB, b: Backup): Promise<void> {
   const errs = validateBackup(b);
   if (errs.length) throw new Error(errs[0]);
-  const keepSheet = b.data.settings.some((r) => r.key === 'sheetUrl') ? null : await d.settings.get('sheetUrl');
+  // Ajustes que solo viven en este dispositivo: se conservan si la copia no los trae.
+  const keep = (await Promise.all(['sheetUrl', 'alerts'].filter((k) => !b.data.settings.some((r) => r.key === k)).map((k) => d.settings.get(k)))).filter((x): x is NonNullable<typeof x> => !!x);
   await d.transaction('rw', BACKUP_TABLES.map((t) => d[t]) as never, async () => {
     for (const t of BACKUP_TABLES) {
       const table = d[t] as unknown as { clear(): Promise<void>; bulkPut(r: unknown[]): Promise<unknown> };
       await table.clear();
-      await table.bulkPut(b.data[t]);
+      await table.bulkPut(b.data[t] ?? []);
     }
-    if (keepSheet) await d.settings.put(keepSheet);
+    if (keep.length) await d.settings.bulkPut(keep);
   });
 }
 

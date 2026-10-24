@@ -1,0 +1,17 @@
+name = "mi-patrimonio-avisos"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Cada hora en punto: mira si toca algún aviso.
+[triggers]
+crons = ["0 * * * *"]
+
+# Aquí se guarda la suscripción de tu móvil y los recordatorios (nada financiero).
+# Si Cloudflare pide un id, crea el espacio en Workers & Pages > KV y pégalo en `id`.
+[[kv_namespaces]]
+binding = "KV"
+
+[vars]
+# Direcciones desde las que se permite usar el servicio (separadas por comas).
+ALLOWED_ORIGIN = "https://miguelangel2507.github.io"
+# Secretos (se ponen en el panel de Cloudflare, nunca aquí): VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT y OWNER_TOKEN.

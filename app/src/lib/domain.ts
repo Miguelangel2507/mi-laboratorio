@@ -1,10 +1,13 @@
 import type { Account, Transaction } from './db';
 
-/** Saldo = inicial + movimientos manuales y recurrentes. Los importados no lo cambian. */
-export function accountBalance(account: Account, txs: Transaction[]): number {
+/**
+ * Saldo = inicial + movimientos manuales y recurrentes de hoy o anteriores.
+ * Los importados no lo cambian y los de fecha futura esperan a su día.
+ */
+export function accountBalance(account: Account, txs: Transaction[], today: string = todayISO()): number {
   let cents = account.initialCents;
   for (const t of txs) {
-    if (t.source === 'import') continue;
+    if (t.source === 'import' || t.date > today) continue;
     if (t.accountId === account.id) {
       if (t.kind === 'income') cents += t.amountCents;
       else cents -= t.amountCents; // gasto o transferencia saliente
@@ -16,13 +19,13 @@ export function accountBalance(account: Account, txs: Transaction[]): number {
 }
 
 /** Suma de cuentas en la moneda principal. Las de otra divisa se cuentan aparte hasta tener cambio. */
-export function netWorth(accounts: Account[], txs: Transaction[], mainCurrency: string) {
+export function netWorth(accounts: Account[], txs: Transaction[], mainCurrency: string, today: string = todayISO()) {
   let cents = 0;
   let excluded = 0;
   for (const a of accounts) {
     if (a.archived) continue;
     if (a.currency !== mainCurrency) { excluded++; continue; }
-    cents += accountBalance(a, txs);
+    cents += accountBalance(a, txs, today);
   }
   return { cents, excluded };
 }

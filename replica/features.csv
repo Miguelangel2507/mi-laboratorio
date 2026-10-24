@@ -24,11 +24,11 @@ Salud del periodo (ahorro ticket medio proyección),estadísticas,could,yes,yes,
 Gráficas y desglose por categoría,estadísticas,should,yes,yes,
 Presupuestos por categoría con avisos 80 y 100 %,presupuestos,should,yes,yes,"avisos dentro de la app, no push"
 Metas de ahorro con avisos,metas,should,yes,yes,"aviso dentro de la app al cruzar 50, 75 y 100 %"
-Recurrentes y transferencias programadas,automatización,should,yes,yes,se generan al abrir la app
+Recurrentes y transferencias programadas,automatización,should,yes,yes,se registran solos en su fecha; pueden empezar en el futuro y no cuentan antes
 Escanear recibo con OCR local,automatización,could,yes,skip,descartado: el OCR en el navegador exige descargar modelos grandes y rinde poco
 Importar CSV con vista previa y deshacer,datos,should,yes,yes,máx. 2.000 filas; plantilla e instrucciones para IA
 Exportar CSV,datos,should,yes,yes,por rango de fechas
-Notificaciones y recordatorios,avisos,could,yes,partial,avisos dentro de la app; sin push
+Notificaciones y recordatorios,avisos,could,yes,partial,avisos dentro de la app + push opcional con un servicio gratuito en Cloudflare (código y tests hechos; falta probarlo en el iPhone real)
 Modo discreto (ocultar saldos),privacidad,should,yes,yes,botón y pulsación larga
 Bloqueo biométrico,privacidad,should,yes,partial,PIN (no hay biometría en una PWA); no cifra los datos
 Tema claro y oscuro,ajustes,should,yes,yes,automático o manual
@@ -41,3 +41,7 @@ Empezar de cero y eliminar cuenta,cuenta,must,yes,yes,borra todos los datos loca
 Logo marca mascota y textos de Neto,marca,could,yes,skip,propiedad de Neto; uso nombre y arte propios
 Conexión bancaria,integraciones,could,no,skip,Neto tampoco la tiene
 "Copia JSON, protección contra el borrado de iOS y restauración desde la bienvenida",datos,must,no,yes,añadido: es lo que sustituye al servidor
+Movimientos con fecha futura (programados),movimientos,should,no,yes,no cuentan en saldos ni patrimonio hasta su día
+Plan de inversión mensual con confirmación una a una,inversiones,must,no,yes,"añadido a petición: pendientes que no cuentan hasta confirmar; fecha, importe, precio y cuenta editables"
+Barra de navegación flotante,ajustes,could,no,yes,a petición
+Aviso de versión nueva de la app,datos,should,no,yes,banner «Hay una versión nueva»; no probado con una actualización real
