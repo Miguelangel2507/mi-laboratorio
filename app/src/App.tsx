@@ -19,11 +19,13 @@ import { AccountPage, Budgets, Categories, DataPage, Goals, Preferences, Prices,
 import Welcome from './pages/Welcome';
 import Lock from './pages/Lock';
 import { UpdateBanner } from './components/UpdateBanner';
+import { useHaptics } from './lib/haptics';
 
 export default function App() {
   useInit();
   useTheme();
   usePendingBadge();
+  useHaptics();
   const currency = useSetting<string | null>('currency', null);
   const pinHash = useSetting<string | null>('pinHash', null);
   const [unlocked, setU] = useState(isUnlocked());
