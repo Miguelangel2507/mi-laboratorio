@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { setSetting } from '../lib/db';
+import { db, setSetting } from '../lib/db';
 import { DEFAULT_ALERTS, disableAlerts, enableAlerts, normalizeUrl, sendTest, supportProblem, type AlertsConfig, type Result } from '../lib/alerts';
 import { DEFAULT_PLAN } from '../lib/plan';
 import { useSetting } from '../lib/hooks';
@@ -14,10 +14,13 @@ export default function AlertsPage() {
   const [cfg, setCfg] = useState<AlertsConfig>(DEFAULT_ALERTS);
   const [res, setRes] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  const savedKeys = useSetting<ServiceKeys | null>('alertsKeys', null);
   const [keys, setKeys] = useState<ServiceKeys | null>(null);
   const [copied, setCopied] = useState('');
   useEffect(() => { if (saved) setCfg(saved); }, [saved]);
-  if (!saved || !plan) return <Skeleton />;
+  // Las claves recién generadas se guardan en el móvil hasta que actives los avisos, por si la app se recarga al ir a Cloudflare.
+  useEffect(() => { if (savedKeys) { setKeys(savedKeys); setCfg((c) => (c.token ? c : { ...c, token: savedKeys.token })); } }, [savedKeys]);
+  if (!saved || !plan || savedKeys === undefined) return <Skeleton />;
 
   const problem = supportProblem();
   const perm = typeof Notification === 'undefined' ? 'no disponible' : Notification.permission === 'granted' ? 'concedido' : Notification.permission === 'denied' ? 'denegado' : 'sin pedir';
@@ -39,7 +42,7 @@ export default function AlertsPage() {
 
       <Section title="1. Prepara tus claves" hint="Se crean aquí, en tu móvil. Cópialas una por una a Cloudflare siguiendo la guía; después ya no hace falta volver a verlas, pero guárdalas por si acaso.">
         {!keys ? (
-          <button className="btn-secondary w-full" onClick={async () => { const k = await generateServiceKeys(); setKeys(k); setCfg((c) => ({ ...c, token: k.token })); }}>Generar mis claves</button>
+          <button className="btn-secondary w-full" onClick={async () => { const k = await generateServiceKeys(); await setSetting('alertsKeys', k); setKeys(k); setCfg((c) => ({ ...c, token: k.token })); }}>Generar mis claves</button>
         ) : (
           <div className="card flex flex-col gap-3 p-4">
             <p role="status" className="text-footnote text-text-muted">En Cloudflare crea 4 «Secrets» con estos nombres y valores. El código secreto ya se ha rellenado abajo.</p>
@@ -55,6 +58,7 @@ export default function AlertsPage() {
             ))}
           </div>
         )}
+        {keys && <button className="mt-2 min-h-tap text-footnote text-text-muted" onClick={async () => { await db.settings.delete('alertsKeys'); setKeys(null); }}>Ya las he copiado: borrarlas de aquí</button>}
       </Section>
 
       <Section title="2. Conecta la app con tu servicio" hint="Es una pequeña función gratuita en tu cuenta de Cloudflare que manda el aviso a la hora indicada. Solo recibe textos genéricos, nunca tus importes ni saldos. Guía de instalación en worker/README.md del repositorio.">
@@ -80,7 +84,7 @@ export default function AlertsPage() {
 
       {res && <p role={res.ok ? 'status' : 'alert'} className={`mb-3 text-footnote ${res.ok ? 'text-income' : 'text-danger'}`}>{res.ok ? res.message : res.error}</p>}
       <div className="flex flex-col gap-2">
-        <button className="btn-primary" disabled={busy} onClick={() => run(async () => { await setSetting('alerts', cfg); return enableAlerts(cfg, plan); })}>{saved.enabled ? 'Guardar cambios' : 'Activar avisos'}</button>
+        <button className="btn-primary" disabled={busy} onClick={() => run(async () => { await setSetting('alerts', cfg); const r = await enableAlerts(cfg, plan); if (r.ok) { await db.settings.delete('alertsKeys'); setKeys(null); } return r; })}>{saved.enabled ? 'Guardar cambios' : 'Activar avisos'}</button>
         <button className="btn-secondary" disabled={busy || !saved.enabled} onClick={() => run(() => sendTest(saved))}>Enviar aviso de prueba</button>
         {saved.enabled && <button className="btn-secondary text-danger" disabled={busy} onClick={() => run(() => disableAlerts(saved))}>Desactivar avisos</button>}
       </div>

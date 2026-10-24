@@ -38,11 +38,14 @@ describe('el código secreto de avisos', () => {
   it('no viaja en la copia, y se conserva en el dispositivo al restaurar', async () => {
     const d = new AppDB(`alerts-${Math.random()}`);
     await d.settings.put({ key: 'alerts', value: { ...DEFAULT_ALERTS, token: 'MUY-SECRETO', workerUrl: 'https://x.dev' } });
+    await d.settings.put({ key: 'alertsKeys', value: { publicKey: 'PUB', privateKey: 'CLAVE-PRIVADA-SECRETA', token: 'TOK' } });
     await d.settings.put({ key: 'currency', value: 'EUR' });
     const b = await exportBackup(d, { includeSheetUrl: true });
     expect(JSON.stringify(b)).not.toContain('MUY-SECRETO');
+    expect(JSON.stringify(b)).not.toContain('CLAVE-PRIVADA-SECRETA');
     await restoreBackup(d, JSON.parse(JSON.stringify(b)));
     expect(((await d.settings.get('alerts'))!.value as { token: string }).token).toBe('MUY-SECRETO');
     expect((await d.settings.get('currency'))!.value).toBe('EUR');
+    expect(await d.settings.get('alertsKeys')).toBeTruthy();
   });
 });

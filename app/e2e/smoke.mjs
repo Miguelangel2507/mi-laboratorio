@@ -483,6 +483,8 @@ await step('avisos: permiso, suscripción y envío al servicio (simulado)', asyn
   for (const n of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'OWNER_TOKEN', 'VAPID_SUBJECT']) check(`muestra ${n} para copiarlo`, await p.getByLabel(n, { exact: true }).isVisible());
   const generated = await p.getByLabel('OWNER_TOKEN', { exact: true }).innerText();
   check('el código secreto generado se rellena solo en el formulario', (await p.getByLabel('Código secreto').inputValue()) === generated && generated.length === 32, generated);
+  await p.goto(BASE + '#/settings'); await p.reload(); await p.waitForTimeout(600); await p.goto(BASE + '#/settings/alerts'); await p.waitForTimeout(800);
+  check('las claves generadas sobreviven a una recarga de la app', (await p.getByLabel('OWNER_TOKEN', { exact: true }).innerText()) === generated);
   await p.getByLabel('Dirección del servicio').fill('http://inseguro.test');
   check('rechaza direcciones sin https', await p.getByText(/debe empezar por https/).isVisible());
   await p.getByLabel('Dirección del servicio').fill(FAKE);
@@ -493,6 +495,7 @@ await step('avisos: permiso, suscripción y envío al servicio (simulado)', asyn
   await p.getByLabel('Hora del aviso').selectOption('8');
   await p.getByRole('button', { name: 'Activar avisos' }).click(); await p.waitForTimeout(1000);
   check('con el código bueno se activan', await p.getByText(/Avisos activados/).isVisible());
+  check('al activar, las claves guardadas se borran del móvil', (await p.getByText('Ya las he copiado').count()) === 0);
   const sub = calls.filter((c) => c.path === '/subscribe' && c.method === 'POST' && c.auth === 'Bearer codigo-bueno').at(-1);
   const body = JSON.parse(sub?.body ?? '{}');
   check('envía endpoint y claves del móvil, la zona horaria y 2 recordatorios', !!body.subscription?.keys?.auth && !!body.tz && body.reminders?.length === 2, JSON.stringify(body).slice(0, 200));
