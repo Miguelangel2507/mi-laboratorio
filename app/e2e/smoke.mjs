@@ -479,6 +479,10 @@ await step('avisos: permiso, suscripción y envío al servicio (simulado)', asyn
   });
   await p.goto(BASE + '#/settings/alerts'); await p.reload(); await p.waitForTimeout(800); // recargar: el script de arranque solo se aplica a documentos nuevos
   check('la pantalla de avisos se abre', await p.getByRole('heading', { name: 'Avisos', exact: true, level: 1 }).isVisible());
+  await p.getByRole('button', { name: 'Generar mis claves' }).click(); await p.waitForTimeout(400);
+  for (const n of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'OWNER_TOKEN', 'VAPID_SUBJECT']) check(`muestra ${n} para copiarlo`, await p.getByLabel(n, { exact: true }).isVisible());
+  const generated = await p.getByLabel('OWNER_TOKEN', { exact: true }).innerText();
+  check('el código secreto generado se rellena solo en el formulario', (await p.getByLabel('Código secreto').inputValue()) === generated && generated.length === 32, generated);
   await p.getByLabel('Dirección del servicio').fill('http://inseguro.test');
   check('rechaza direcciones sin https', await p.getByText(/debe empezar por https/).isVisible());
   await p.getByLabel('Dirección del servicio').fill(FAKE);
