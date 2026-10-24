@@ -31,7 +31,7 @@ export async function exportBackup(d: AppDB, opts: { includeSheetUrl: boolean })
   const data = {} as Backup['data'];
   for (const t of BACKUP_TABLES) {
     let rows = (await (d[t] as { toArray(): Promise<unknown[]> }).toArray()) as Record<string, unknown>[];
-    if (t === 'settings') rows = rows.filter((r) => r.key !== 'alerts' && (opts.includeSheetUrl || r.key !== 'sheetUrl'));
+    if (t === 'settings') rows = rows.filter((r) => r.key !== 'alerts' && r.key !== 'alertsKeys' && (opts.includeSheetUrl || r.key !== 'sheetUrl'));
     data[t] = rows;
   }
   return { app: 'mi-patrimonio', schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), data };
@@ -74,7 +74,7 @@ export async function restoreBackup(d: AppDB, b: Backup): Promise<void> {
   const errs = validateBackup(b);
   if (errs.length) throw new Error(errs[0]);
   // Ajustes que solo viven en este dispositivo: se conservan si la copia no los trae.
-  const keep = (await Promise.all(['sheetUrl', 'alerts'].filter((k) => !b.data.settings.some((r) => r.key === k)).map((k) => d.settings.get(k)))).filter((x): x is NonNullable<typeof x> => !!x);
+  const keep = (await Promise.all(['sheetUrl', 'alerts', 'alertsKeys'].filter((k) => !b.data.settings.some((r) => r.key === k)).map((k) => d.settings.get(k)))).filter((x): x is NonNullable<typeof x> => !!x);
   await d.transaction('rw', BACKUP_TABLES.map((t) => d[t]) as never, async () => {
     for (const t of BACKUP_TABLES) {
       const table = d[t] as unknown as { clear(): Promise<void>; bulkPut(r: unknown[]): Promise<unknown> };

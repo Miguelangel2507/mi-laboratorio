@@ -10,13 +10,11 @@ Sin este servicio la app funciona igual; solo faltan las notificaciones con la a
 - Una cuenta gratuita de Cloudflare (https://dash.cloudflare.com/sign-up).
 - La app instalada en la pantalla de inicio del iPhone (iOS 16.4 o superior).
 
-## Paso 1 — Genera tus claves (en un ordenador con Node)
-```bash
-cd worker
-npm install
-npm run keys
-```
-Te imprime 4 valores. Guárdalos en un sitio seguro: se usan en el paso 3.
+## Paso 1 — Genera tus claves
+Lo más fácil, desde el iPhone: abre la app **desde su icono** > Ajustes > Avisos y notificaciones > **Generar mis claves**.
+Te muestra 4 valores con un botón para copiar cada uno. Se crean en tu móvil y no salen de él. Guárdalos en tus notas por si hace falta repetir el paso 3.
+
+(Alternativa con ordenador y Node: `cd worker && npm install && npm run keys` imprime los mismos valores.)
 
 ## Paso 2 — Conecta el repositorio con Cloudflare
 1. En Cloudflare: **Workers & Pages > Create > Import a repository** (conecta tu cuenta de GitHub si te lo pide).

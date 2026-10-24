@@ -18,4 +18,4 @@ Manual, en el iPhone real (no se puede automatizar aquí):
 6. Activar PIN, cerrar la app un minuto y volver a abrirla.
 7. Plan mensual: crear el plan, esperar al día (o poner el día de hoy) y confirmar una aportación cambiando la fecha.
 8. Avisos: seguir `worker/README.md`, activar los avisos y pulsar «Enviar aviso de prueba» con la app cerrada.
-9. Actualización: tras publicar una versión nueva, abrir la app y comprobar que sale «Hay una versión nueva» y que «Actualizar» funciona.
+9. Actualización: tras publicar una versión nueva, abrir la app (puede verse la anterior), cerrarla y reabrirla: debe salir la nueva sin pasos extra. Con la app ya abierta, la siguiente versión debe mostrar el banner «Hay una versión nueva · Actualizar».
