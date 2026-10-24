@@ -22,3 +22,11 @@ Limitaciones conocidas (no son bugs, son decisiones): datos solo en el dispositi
 | B9 | S4 | «Octubre De 2026» / «Tocaba El 1 Oct» (mayúsculas de más) | revisión de capturas | corregido |
 
 Limitaciones: el aviso de versión nueva y las notificaciones push reales no se han podido probar en un iPhone real desde aquí.
+
+## Tercera ronda (actualización de la app instalada)
+
+| id | sev | qué pasaba | cómo se encontró | estado |
+| --- | --- | --- | --- | --- |
+| B10 | S2 | tras publicar una versión, el iPhone seguía mostrando la antigua: la versión nueva se quedaba «en espera» hasta cerrar del todo la app, y la versión instalada no tenía forma de avisar | lo detectó el usuario | corregido: la versión nueva se activa sola al descargarse; la app abierta ofrece «Actualizar» |
+
+Comprobado en Chromium con la versión antigua abierta, publicando la nueva y reabriendo: se ve la nueva en la siguiente apertura, con los datos intactos; también desde el estado «versión intermedia en espera». No se ha podido probar en un iPhone real.

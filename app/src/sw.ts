@@ -8,7 +8,11 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 
-// La app avisa cuando hay versión nueva y el usuario decide cuándo aplicarla.
+// Una versión nueva se activa en cuanto está descargada, sin esperar a que se cierre la app:
+// en el iPhone «cerrar del todo» es poco fiable y dejaba a la gente con la versión vieja.
+// La página ya abierta sigue con lo que cargó y la app le ofrece recargar (ver UpdateBanner).
+self.addEventListener('install', () => { void self.skipWaiting(); });
+self.addEventListener('activate', (event) => { event.waitUntil(self.clients.claim()); });
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') void self.skipWaiting();
 });
