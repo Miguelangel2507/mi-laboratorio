@@ -526,6 +526,35 @@ await step('avisos: permiso, suscripción y envío al servicio (simulado)', asyn
   check('se pueden desactivar', await p.getByText('Avisos desactivados.').isVisible());
 });
 
+await step('vibración al tocar (opcional)', async () => {
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(500);
+  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
+  await p.getByRole('link', { name: 'Ajustes' }).first().click().catch(() => {}); // un toque cualquiera con la opción apagada
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
+  await p.getByRole('tab').first().click({ timeout: 500 }).catch(() => {});
+  await p.getByRole('link', { name: 'Inicio' }).click(); await p.waitForTimeout(200);
+  check('apagada por defecto: ningún toque vibra', (await p.evaluate(() => window.__vib.length)) === 0);
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
+  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(500);
+  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
+  await p.getByRole('link', { name: 'Estadísticas' }).click(); await p.waitForTimeout(200);
+  await p.getByRole('button', { name: 'Añadir movimiento' }).click(); await p.waitForTimeout(300);
+  check('activada: cada toque en un botón o enlace vibra', (await p.evaluate(() => window.__vib.length)) >= 2, String(await p.evaluate(() => window.__vib.length)));
+  await p.getByRole('button', { name: 'Cancelar' }).click(); await p.waitForTimeout(300);
+  // iPhone: sin Vibration API se usa el interruptor nativo oculto
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(500);
+  await p.evaluate(() => { Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true }); });
+  await p.getByRole('link', { name: 'Inicio' }).click(); await p.waitForTimeout(200);
+  const sw1 = await p.evaluate(() => { const i = document.querySelector('label[data-haptic-ignore] input[switch]'); return i ? i.checked : null; });
+  await p.getByRole('link', { name: 'Cartera' }).click(); await p.waitForTimeout(200);
+  const sw2 = await p.evaluate(() => document.querySelector('label[data-haptic-ignore] input[switch]')?.checked);
+  check('sin Vibration API (iPhone): se crea el interruptor oculto y se acciona en cada toque', sw1 !== null && sw1 !== sw2, `${sw1} -> ${sw2}`);
+  check('el interruptor oculto no es visible ni lo lee el lector de pantalla', await p.evaluate(() => { const l = document.querySelector('label[data-haptic-ignore]'); return l.getAttribute('aria-hidden') === 'true' && getComputedStyle(l).opacity === '0'; }));
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
+  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(400);
+});
+
 log('\nerrores de consola/página:', errors);
 log(fails === 0 ? '\nTODO OK' : `\n${fails} COMPROBACIONES FALLARON`);
 await b.close();

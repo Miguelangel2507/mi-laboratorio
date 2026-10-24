@@ -10,6 +10,7 @@ import { toCents } from '../lib/money';
 import { exportBackup, restoreBackup, summarizeBackup, validateBackup, wipeAll, type Backup } from '../lib/backup';
 import { aiInstructions, commitImport, CSV_TEMPLATE, MAX_IMPORT_ROWS, parseImport, transactionsToCsv, undoImport, type ImportRow } from '../lib/csvio';
 import { checkPin, clearPin, setPin } from '../lib/lock';
+import { tap } from '../lib/haptics';
 import { download, fmtBytes, requestPersistence, shareOrDownload, storageStatus, type StorageStatus } from '../lib/storage';
 import { useFx, useMoney, useSetting } from '../lib/hooks';
 import { BackHeader, DangerButton, Field, Group, Row, Section, Skeleton, Banner, fmtDate } from '../components/ui';
@@ -401,6 +402,7 @@ export function DataPage() {
 export function Preferences() {
   const theme = useSetting<string>('theme', 'auto') ?? 'auto';
   const currency = useSetting<string>('currency', 'EUR') ?? 'EUR';
+  const haptics = useSetting<boolean>('haptics', false) ?? false;
   return (
     <>
       <BackHeader title="Preferencias" to="/settings" />
@@ -410,7 +412,11 @@ export function Preferences() {
         <label className="flex min-h-tap items-center justify-between px-4"><span>Tema</span>
           <select className="bg-transparent text-text-muted outline-none" value={theme} onChange={(e) => setSetting('theme', e.target.value)}>
             <option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Oscuro</option></select></label>
+        <label className="flex min-h-tap items-center justify-between px-4"><span>Vibración al tocar (experimental)</span>
+          <input type="checkbox" role="switch" className="size-6" checked={haptics} onChange={(e) => { void setSetting('haptics', e.target.checked); }} aria-label="Vibración al tocar" /></label>
+        {haptics && <Row onClick={() => tap()} right={<span className="text-accent">Probar</span>}>Probar el toque</Row>}
       </Group>
+      <p className="mt-3 text-footnote text-text-muted">Para que el <strong>teclado</strong> vibre al escribir, actívalo en el iPhone: Ajustes &gt; Sonidos y vibración &gt; Respuesta del teclado &gt; Vibración. La vibración de los botones depende de tu versión de iOS y de que la «Respuesta háptica del sistema» esté activada en esos mismos ajustes.</p>
       <p className="mt-3 text-footnote text-text-muted">Cambiar la moneda principal no modifica tus cuentas: solo cómo se suman los totales.</p>
     </>
   );
