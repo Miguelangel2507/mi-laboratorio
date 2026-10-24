@@ -8,11 +8,11 @@ export const MAX_IMPORT_ROWS = 2000;
 
 const esc = (s: string) => (/[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
 
-/** Las transferencias no se exportan: el CSV solo entiende Gasto e Ingreso. */
+/** Las transferencias y las inversiones no se exportan: el CSV solo entiende Gasto e Ingreso. */
 export function transactionsToCsv(txs: Transaction[], accounts: Account[], cats: Category[], from?: string, to?: string): string {
   const lines = [CSV_HEADER.join(',')];
   for (const t of [...txs].sort((a, b) => a.date.localeCompare(b.date))) {
-    if (t.kind === 'transfer') continue;
+    if (t.kind === 'transfer' || t.kind === 'invest') continue;
     if (from && to && !inRange(t.date, from, to)) continue;
     const sign = t.kind === 'expense' ? -1 : 1;
     lines.push([

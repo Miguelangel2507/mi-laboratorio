@@ -18,14 +18,15 @@ await ctx.route('**/gviz/tq**', (r) => r.fulfill({ status: 200, contentType: 'te
 await ctx.route('**/api.frankfurter.dev/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ rates: { USD: 1.1, GBP: 0.85 } }) }));
 const shot = (name) => (out ? p.screenshot({ path: `${out}/${name}` }) : Promise.resolve());
 const errors = [];
-p.on('pageerror', (e) => errors.push('PAGE ' + e));
+let current = 'inicio';
+p.on('pageerror', (e) => errors.push(`[${current}] PAGE ` + (e.stack ?? e).toString().split('\n').slice(0, 7).join(' <- ')));
 p.on('console', (m) => m.type() === 'error' && !/frankfurter|Failed to load resource/.test(m.text()) && errors.push('CONSOLE ' + m.text()));
 const log = (...a) => console.log(...a);
 const txt = async (sel) => (await p.locator(sel).first().innerText()).replace(/\s+/g, ' ');
 const NW = 'section[aria-label="Patrimonio neto"]';
 let fails = 0;
 const check = (name, ok, extra = '') => { if (!ok) fails++; log(ok ? 'OK   ' : 'FALLA', name, ok ? '' : extra); };
-const step = async (name, fn) => { try { await fn(); } catch (e) { fails++; log('ERROR', name, String(e).split('\n')[0]); } };
+const step = async (name, fn) => { current = name; try { await fn(); } catch (e) { fails++; log('ERROR', name, String(e).split('\n')[0]); } };
 
 await p.goto(BASE);
 await p.getByRole('button', { name: 'Empezar' }).click();
@@ -82,7 +83,7 @@ await step('recurrente', async () => {
   await p.getByLabel('Importe').fill('9,99'); await p.getByLabel('Nota').fill('Gimnasio');
   await p.getByLabel('Fecha').fill('2026-08-31');
   await p.getByLabel('Repetir').selectOption({ label: 'Cada mes' });
-  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await p.getByRole('button', { name: 'Guardar recurrente' }).click();
   await p.waitForURL((u) => !u.hash.startsWith('#/add'));
   await p.waitForTimeout(500);
   await p.reload(); await p.waitForTimeout(1000);
@@ -324,6 +325,137 @@ await step('restaurar desde la bienvenida', async () => {
   await p.waitForTimeout(900);
   await p.goto(BASE + '#/'); await p.waitForTimeout(500);
   check('restaurar desde la bienvenida recupera cuentas y moneda', /Cuentas \d/.test(await txt(NW)), await txt(NW));
+});
+
+const plusDays = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+const nw = async () => {
+  await p.goto(BASE + '#/'); await p.waitForTimeout(500);
+  const t = await txt(NW + ' p.num');
+  return Number(t.replace(/[^\d,-]/g, '').replace(',', '.'));
+};
+
+await step('barra de navegación flotante', async () => {
+  await p.goto(BASE + '#/'); await p.waitForTimeout(400);
+  const box = await p.locator('nav[aria-label="Principal"] > div').boundingBox();
+  check('la barra no toca los bordes (flotante) y es una pastilla', box.x >= 8 && box.x + box.width <= 390 - 8 && box.y + box.height < 844 - 6, JSON.stringify(box));
+  await shot('S00-barra-flotante.png');
+});
+
+await step('movimiento con fecha futura', async () => {
+  const before = await nw();
+  await p.goto(BASE + '#/add');
+  await p.getByLabel('Importe', { exact: true }).fill('50');
+  await p.getByLabel('Nota').fill('Futuro');
+  await p.getByLabel('Fecha', { exact: true }).fill(plusDays(8));
+  check('avisa de que es programado', await p.getByText(/figurará como programado/).isVisible());
+  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await p.waitForURL((u) => !u.hash.startsWith('#/add')); await p.waitForTimeout(400);
+  const after = await nw();
+  check('un gasto futuro NO cambia el patrimonio hoy', after === before, `${before} → ${after}`);
+  check('aparece en Programados', await p.getByRole('heading', { name: 'Programados' }).isVisible());
+});
+
+await step('recurrentes con inicio futuro', async () => {
+  const before = await nw();
+  await p.goto(BASE + '#/settings/recurring');
+  await p.getByRole('link', { name: 'Nuevo' }).click();
+  await p.getByRole('radio', { name: 'Ingreso' }).click();
+  await p.getByLabel('Importe', { exact: true }).fill('1800');
+  await p.getByLabel('Nota').fill('Nómina futura');
+  await p.getByLabel('Primera fecha').fill(plusDays(8));
+  check('explica que no se registra hasta esa fecha', await p.getByText(/No se registrará nada hasta el/).isVisible());
+  await p.getByRole('button', { name: 'Guardar recurrente' }).click();
+  await p.waitForURL(/#\/settings\/recurring/); await p.waitForTimeout(500);
+  check('la regla aparece como «empieza»', await p.getByText(/empieza/).first().isVisible());
+  const after = await nw();
+  check('un ingreso recurrente futuro NO suma hoy', after === before, `${before} → ${after}`);
+  await p.goto(BASE + '#/movements'); await p.waitForTimeout(300);
+  check('no se ha creado ningún movimiento de la regla', (await p.locator('a[href^="#/tx/"]').filter({ hasText: 'Nómina futura' }).count()) === 0);
+  // editar la regla
+  await p.goto(BASE + '#/settings/recurring');
+  await p.getByRole('link', { name: /Nómina futura/ }).click();
+  await p.getByLabel('Importe', { exact: true }).fill('1900');
+  await p.getByRole('button', { name: 'Guardar recurrente' }).click();
+  await p.waitForURL(/#\/settings\/recurring/); await p.waitForTimeout(400);
+  check('editar la regla cambia el importe', await p.getByText(/1900,00/).first().isVisible());
+});
+
+await step('recurrente que empieza hoy se registra ya', async () => {
+  const before = await nw();
+  await p.goto(BASE + '#/add?rule=1');
+  await p.getByLabel('Importe', { exact: true }).fill('10');
+  await p.getByLabel('Nota').fill('Suscripción de prueba');
+  await p.getByLabel('Primera fecha').fill(plusDays(0));
+  await p.getByRole('button', { name: 'Guardar recurrente' }).click();
+  await p.waitForURL((u) => !u.hash.startsWith('#/add')); await p.waitForTimeout(500);
+  const after = await nw();
+  check('si la fecha ya llegó, se registra la primera vez al momento (−10)', Math.abs(before - after - 10) < 0.005, `${before} → ${after}`);
+});
+
+await step('plan de inversión mensual', async () => {
+  await p.goto(BASE + '#/settings/prices');
+  await p.getByPlaceholder('https://docs.google.com/spreadsheets/d/…').fill(SHEET);
+  await p.getByRole('button', { name: 'Guardar y leer' }).click(); await p.waitForTimeout(1500);
+  const base = await nw();
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(500);
+  await p.getByLabel('Cuenta de origen').selectOption({ label: 'Nómina' });
+  const month = plusDays(0).slice(0, 7);
+  for (const [fund, qty] of [['Fondo Demo', '100'], ['Fondo Manual', '50']]) {
+    await p.getByLabel('Fondo de tu hoja').selectOption({ label: fund });
+    await p.getByLabel('Cantidad mensual').fill(qty);
+    await p.getByLabel('Mes de la primera aportación').fill(month);
+    await p.getByRole('button', { name: 'Añadir al plan' }).click(); await p.waitForTimeout(500);
+  }
+  check('el plan crea 2 aportaciones pendientes', await p.getByText('Por confirmar (2)').isVisible());
+  check('el aviso numérico sale en la pestaña Cartera', await p.getByRole('link', { name: /Cartera, 2 por confirmar/ }).isVisible());
+  await shot('S09-plan.png');
+  check('pendientes NO cuentan en el patrimonio', (await nw()) === base, `${base}`);
+  check('aviso en Inicio', await p.getByText(/2 aportaciones de tu plan por confirmar/).isVisible());
+
+  // confirmar con otra fecha
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(400);
+  const demo = p.getByRole('group', { name: /Fondo Demo/ });
+  check('toma el precio de la hoja (14,5065)', (await demo.getByLabel('Precio de Fondo Demo').inputValue()) === '14,5065');
+  await demo.getByLabel('Fecha de Fondo Demo').fill(month + '-02');
+  await demo.getByRole('button', { name: 'Confirmar' }).click(); await p.waitForTimeout(600);
+  check('queda 1 por confirmar', await p.getByText('Por confirmar (1)').isVisible());
+  const afterOne = await nw();
+  check('confirmar compra y descuenta: el patrimonio total no cambia', Math.abs(afterOne - base) < 0.02, `${base} → ${afterOne}`);
+  await p.goto(BASE + '#/movements'); await p.waitForTimeout(300);
+  const inv = p.locator('a[href="#/investments/plan"]').filter({ hasText: 'Inversión' }).first();
+  check('el movimiento figura como Inversión con la fecha elegida', (await inv.innerText()).includes(month + '-02'), await inv.innerText());
+
+  // fondo sin precio en la hoja
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(400);
+  const man = p.getByRole('group', { name: /Fondo Manual/ });
+  await man.getByRole('button', { name: 'Confirmar' }).click();
+  check('sin precio pide escribirlo', await man.getByRole('alert').isVisible());
+  await man.getByLabel('Precio de Fondo Manual').fill('10,73739');
+  await man.getByRole('button', { name: 'Confirmar' }).click(); await p.waitForTimeout(600);
+  check('ya no queda nada pendiente', await p.getByText('Por confirmar (0)').isVisible());
+  const afterAll = await nw();
+  check('con ambas confirmadas el patrimonio sigue igual', Math.abs(afterAll - base) < 0.02, `${base} → ${afterAll}`);
+
+  // deshacer
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(400);
+  await p.getByRole('button', { name: /Deshacer Fondo Manual/ }).click(); await p.waitForTimeout(500);
+  check('deshacer devuelve la aportación a pendiente', await p.getByText('Por confirmar (1)').isVisible());
+  await p.getByRole('group', { name: /Fondo Manual/ }).getByRole('button', { name: 'Saltar este mes' }).click(); await p.waitForTimeout(400);
+  check('saltar la quita de pendientes', await p.getByText('Por confirmar (0)').isVisible() && await p.getByText('Saltadas').isVisible());
+  await shot('S09b-plan-confirmado.png');
+});
+
+await step('el plan sobrevive a copia y restauración', async () => {
+  await p.goto(BASE + '#/settings/data');
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: 'Guardar copia' }).click()]);
+  await dl.saveAs(S + '/backup2.json');
+  const b2 = JSON.parse(fs.readFileSync(S + '/backup2.json', 'utf8'));
+  check('la copia incluye el plan y sus aportaciones', b2.data.planItems.length === 2 && b2.data.planRuns.length >= 2, `${b2.data.planItems.length} / ${b2.data.planRuns.length}`);
+  await p.goto(BASE + '#/settings/account');
+  await p.getByRole('button', { name: 'Empezar de cero' }).click(); await p.getByRole('button', { name: /Pulsa otra vez/ }).click(); await p.waitForTimeout(700);
+  await p.getByLabel('Archivo de copia').setInputFiles(S + '/backup2.json'); await p.waitForTimeout(900);
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(500);
+  check('tras restaurar, el plan sigue ahí', await p.getByText('Fondo Demo').first().isVisible());
 });
 
 log('\nerrores de consola/página:', errors);

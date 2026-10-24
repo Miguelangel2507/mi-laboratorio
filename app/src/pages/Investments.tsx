@@ -20,6 +20,8 @@ export default function Investments() {
   const { rates } = useFx();
   const { main, result } = useNetWorth();
   const quotes = useLiveQuery(() => db.quotes.toArray(), []);
+  const planItems = useLiveQuery(() => db.planItems.toArray(), []);
+  const pendingRuns = useLiveQuery(() => db.planRuns.where('status').equals('pending').count(), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +31,7 @@ export default function Investments() {
     setBusy(false);
   }
 
-  if (!result || !quotes || link === undefined) return <Skeleton h="h-40" />;
+  if (!result || !quotes || link === undefined || !planItems || pendingRuns === undefined) return <Skeleton h="h-40" />;
   const views = result.views;
   const toMain = (c: number, cur: string) => convertCents(c, cur, main, rates);
   const invested = views.filter((v) => v.asset.type !== 'debt' && v.asset.type !== 'other');
@@ -51,6 +53,16 @@ export default function Investments() {
 
       {error && <Banner tone="danger">{error}</Banner>}
       {!link && <Banner action={<Link to="/settings/prices" className="font-semibold text-accent">Conectar</Link>}>Conecta tu hoja para que los fondos tengan precio automático.</Banner>}
+
+      <Link to="/investments/plan" className="card mb-3 flex min-h-tap items-center justify-between gap-3 px-4 py-3">
+        <span>
+          <span className="block text-headline">Plan mensual</span>
+          <span className="block text-footnote text-text-muted">
+            {planItems.length === 0 ? 'Crea tu plan de aportaciones' : pendingRuns > 0 ? `${pendingRuns} por confirmar` : `${planItems.filter((p) => p.active).length} fondos · al día`}
+          </span>
+        </span>
+        {pendingRuns > 0 && <span className="grid min-w-6 place-items-center rounded-pill bg-danger px-2 text-footnote font-bold text-on-accent">{pendingRuns}</span>}
+      </Link>
 
       {views.length === 0 ? (
         <EmptyState title="Aún no tienes inversiones" text="Añade tus fondos, acciones, cripto, bienes o deudas para ver tu patrimonio completo.">

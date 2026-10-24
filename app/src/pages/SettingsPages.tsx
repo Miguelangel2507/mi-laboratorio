@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { db, setSetting, type Frequency, type Kind } from '../lib/db';
 import { sheetCsvUrl } from '../lib/sheet';
 import { refreshQuotes } from '../lib/quotes';
@@ -190,22 +190,27 @@ export function RecurringList() {
   const accounts = useLiveQuery(() => db.accounts.toArray(), []);
   if (!list || !cats || !accounts) return <Skeleton />;
   const label = (f: Frequency) => FREQ.find((x) => x.id === f)?.label ?? f;
-  const kindLabel: Record<Kind, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia' };
+  const kindLabel: Record<Kind, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', invest: 'Inversión' };
+  const today = todayISO();
+  const sorted = [...list].sort((a, b) => a.nextRun.localeCompare(b.nextRun));
   return (
     <>
-      <BackHeader title="Movimientos recurrentes" to="/settings" />
-      {list.length === 0 ? <EmptyState title="Sin recurrentes" text="Al apuntar un movimiento, elige «Repetir» y se registrará solo." /> : (
+      <BackHeader title="Movimientos recurrentes" to="/settings" action={<Link to="/add?rule=1" className="min-h-tap px-2 py-2 font-semibold text-accent">Nuevo</Link>} />
+      {sorted.length === 0 ? (
+        <EmptyState title="Sin recurrentes" text="Crea gastos e ingresos que se repiten (alquiler, nómina, suscripciones). Puedes ponerles una fecha de inicio futura.">
+          <Link to="/add?rule=1" className="btn-primary inline-flex items-center">Crear recurrente</Link>
+        </EmptyState>
+      ) : (
         <Group>
-          {list.map((r) => (
-            <Row key={r.id} right={<span className="flex flex-col items-end"><span className="num">{money(r.amountCents, r.currency)}</span>
-              <button className="min-h-tap text-footnote text-danger" onClick={() => db.recurring.delete(r.id!)}>Borrar</button></span>}>
+          {sorted.map((r) => (
+            <Row key={r.id} to={`/rule/${r.id}`} right={<span className={`num ${r.kind === 'income' ? 'text-income' : ''}`}>{r.kind === 'income' ? '+' : r.kind === 'expense' ? '−' : ''}{money(r.amountCents, r.currency)}</span>}>
               <span className="block truncate">{r.note || cats.find((c) => c.id === r.categoryId)?.name || kindLabel[r.kind]}</span>
-              <span className="block text-footnote text-text-muted">{label(r.frequency)} · próxima {fmtDate(r.nextRun)} · {accounts.find((a) => a.id === r.accountId)?.name}</span>
+              <span className="block truncate text-footnote text-text-muted">{label(r.frequency)} · {r.nextRun > today ? 'empieza' : 'próxima'} {fmtDate(r.nextRun)} · {accounts.find((a) => a.id === r.accountId)?.name}</span>
             </Row>
           ))}
         </Group>
       )}
-      <p className="mt-3 text-footnote text-text-muted">Los movimientos vencidos se registran al abrir la app. Borrar una regla no borra lo ya registrado.</p>
+      <p className="mt-3 text-footnote text-text-muted">Se apuntan solos en su fecha y no cuentan antes. Si cambias o borras una regla, lo ya registrado no se toca.</p>
     </>
   );
 }
