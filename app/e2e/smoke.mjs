@@ -458,6 +458,67 @@ await step('el plan sobrevive a copia y restauración', async () => {
   check('tras restaurar, el plan sigue ahí', await p.getByText('Fondo Demo').first().isVisible());
 });
 
+await step('avisos: permiso, suscripción y envío al servicio (simulado)', async () => {
+  const FAKE = 'https://avisos.test';
+  const calls = [];
+  await ctx.grantPermissions(['notifications'], { origin: new URL(BASE).origin });
+  await ctx.addInitScript(() => {
+    // Chromium sin red no puede hablar con el servicio de push de Google: se simula la suscripción del navegador.
+    const sub = { endpoint: 'https://web.push.apple.com/prueba', expirationTime: null, toJSON() { return { endpoint: this.endpoint, expirationTime: null, keys: { p256dh: 'BNnnekUBbHF2_jeUrvpzDBFdEtYNEaF_8RGz9evysPlgyoEdH1cxywaFW2r4q3NPyydX3sFfC4KMKV3yPkwxFFg', auth: 'AAAAAAAAAAAAAAAAAAAAAA' } }; }, async unsubscribe() { window.__unsub = true; return true; } };
+    PushManager.prototype.getSubscription = async function () { return window.__sub ?? null; };
+    PushManager.prototype.subscribe = async function () { window.__sub = sub; return sub; };
+  });
+  await ctx.route(FAKE + '/**', async (r) => {
+    const rq = r.request(); const path = new URL(rq.url()).pathname;
+    calls.push({ method: rq.method(), path, auth: rq.headers()['authorization'], body: rq.postData() });
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': '*' };
+    if (rq.method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors });
+    if (path === '/vapid-public-key') return r.fulfill({ status: 200, headers: cors, body: 'BMUl_BSbqve2sHSHNidmcSl6E7x_eTnVwlAjpT_CbBp9EbLyIzXJWlwlEbc9naqF2W4EiVNhteXXUFPYL1bPltw' });
+    if (rq.headers()['authorization'] !== 'Bearer codigo-bueno') return r.fulfill({ status: 401, headers: cors, body: '{}' });
+    return r.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: '{"ok":true}' });
+  });
+  await p.goto(BASE + '#/settings/alerts'); await p.reload(); await p.waitForTimeout(800); // recargar: el script de arranque solo se aplica a documentos nuevos
+  check('la pantalla de avisos se abre', await p.getByRole('heading', { name: 'Avisos', exact: true, level: 1 }).isVisible());
+  await p.getByLabel('Dirección del servicio').fill('http://inseguro.test');
+  check('rechaza direcciones sin https', await p.getByText(/debe empezar por https/).isVisible());
+  await p.getByLabel('Dirección del servicio').fill(FAKE);
+  await p.getByLabel('Código secreto').fill('codigo-malo');
+  await p.getByRole('button', { name: 'Activar avisos' }).click(); await p.waitForTimeout(800);
+  check('un código equivocado da un error claro y no activa nada', await p.getByText(/código secreto no coincide/).isVisible());
+  await p.getByLabel('Código secreto').fill('codigo-bueno');
+  await p.getByLabel('Hora del aviso').selectOption('8');
+  await p.getByRole('button', { name: 'Activar avisos' }).click(); await p.waitForTimeout(1000);
+  check('con el código bueno se activan', await p.getByText(/Avisos activados/).isVisible());
+  const sub = calls.filter((c) => c.path === '/subscribe' && c.method === 'POST' && c.auth === 'Bearer codigo-bueno').at(-1);
+  const body = JSON.parse(sub?.body ?? '{}');
+  check('envía endpoint y claves del móvil, la zona horaria y 2 recordatorios', !!body.subscription?.keys?.auth && !!body.tz && body.reminders?.length === 2, JSON.stringify(body).slice(0, 200));
+  check('el recordatorio del plan va a su hora y con su ruta', body.reminders?.some((r) => r.id === 'plan' && r.hour === 8 && r.url === '#/investments/plan' && r.day >= 1));
+  check('los textos enviados no llevan cifras ni importes', body.reminders?.every((r) => !/[\d€]/.test(r.text)), JSON.stringify(body.reminders));
+  await p.getByRole('button', { name: 'Enviar aviso de prueba' }).click(); await p.waitForTimeout(700);
+  check('el aviso de prueba se pide al servicio', calls.some((c) => c.path === '/test' && c.method === 'POST' && c.auth === 'Bearer codigo-bueno'));
+  await shot('S13b-avisos.png');
+
+  // el service worker muestra la notificación al recibir un push
+  const cdp = await ctx.newCDPSession(p);
+  const regs = new Map();
+  cdp.on('ServiceWorker.workerRegistrationUpdated', (e) => e.registrations.forEach((x) => regs.set(x.registrationId, x.scopeURL)));
+  await cdp.send('ServiceWorker.enable'); await p.waitForTimeout(500);
+  const id = [...regs.keys()][0];
+  if (!id) throw new Error('no se encontró el service worker');
+  await cdp.send('ServiceWorker.deliverPushMessage', { origin: new URL(BASE).origin, registrationId: id, data: JSON.stringify({ title: 'Mi Patrimonio', body: 'Hoy toca tu plan de inversión.', url: '#/investments/plan', tag: 'plan' }) });
+  await p.waitForTimeout(1200);
+  const shown = await p.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => ({ title: n.title, body: n.body, tag: n.tag, url: n.data?.url })));
+  check('al llegar un push, el service worker muestra la notificación', shown.some((n) => n.body === 'Hoy toca tu plan de inversión.' && n.title === 'Mi Patrimonio' && n.url === '#/investments/plan'), JSON.stringify(shown));
+  // un push mal formado igualmente muestra algo (iOS retira el permiso si no se muestra nada)
+  await cdp.send('ServiceWorker.deliverPushMessage', { origin: new URL(BASE).origin, registrationId: id, data: 'texto plano' });
+  await p.waitForTimeout(1000);
+  const shown2 = await p.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).length);
+  check('un push con formato raro también muestra una notificación', shown2 >= 2, String(shown2));
+
+  await p.getByRole('button', { name: 'Desactivar avisos' }).click(); await p.waitForTimeout(800);
+  check('se pueden desactivar', await p.getByText('Avisos desactivados.').isVisible());
+});
+
 log('\nerrores de consola/página:', errors);
 log(fails === 0 ? '\nTODO OK' : `\n${fails} COMPROBACIONES FALLARON`);
 await b.close();

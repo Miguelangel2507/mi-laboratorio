@@ -6,6 +6,7 @@ import { todayISO } from '../lib/domain';
 import { parseDecimal, toCents } from '../lib/money';
 import { confirmRun, DEFAULT_PLAN, dueDateFor, generatePlanRuns, nextStartMonth, reopenRun, skipRun, undoRun } from '../lib/plan';
 import { useMoney, useSetting } from '../lib/hooks';
+import { syncRemindersIfEnabled } from '../lib/alerts';
 import { Banner, BackHeader, Field, Group, Row, Section, Skeleton, fmtDate } from '../components/ui';
 
 const fmtPrice = (e5: number) => (e5 / 1e5).toString().replace('.', ',');
@@ -100,6 +101,7 @@ export default function PlanPage() {
   async function saveCfg(next: PlanConfig) {
     await setSetting('plan', next);
     await generatePlanRuns(db, todayISO());
+    void syncRemindersIfEnabled();
   }
   async function addItem() {
     setError('');

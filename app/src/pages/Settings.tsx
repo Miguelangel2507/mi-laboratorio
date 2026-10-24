@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Tag, Target, PiggyBank, Repeat, Database, SlidersHorizontal, LineChart, Lock, UserX } from 'lucide-react';
+import { Bell, Tag, Target, PiggyBank, Repeat, Database, SlidersHorizontal, LineChart, Lock, UserX } from 'lucide-react';
 import { useSetting } from '../lib/hooks';
 import { BackHeader, Group, Row, Section } from '../components/ui';
 
@@ -25,6 +25,7 @@ export default function Settings() {
       <Section title="App">
         <Group>
           <Row to="/settings/preferences">{I(<SlidersHorizontal size={20} />)}Preferencias</Row>
+          <Row to="/settings/alerts">{I(<Bell size={20} />)}Avisos y notificaciones</Row>
           <Row to="/settings/privacy">{I(<Lock size={20} />)}Privacidad y bloqueo</Row>
           <Row to="/settings/account">{I(<UserX size={20} />)}Borrar datos</Row>
         </Group>

@@ -24,7 +24,7 @@ features 95.0  (32 counted, must-haves 10 of 10 done)
 - [should] divisas: 62 divisas con conversión diaria, partial  (31 divisas del BCE (las que se pueden convertir))
 - [should] privacidad: Bloqueo biométrico, partial  (PIN (no hay biometría en una PWA); no cifra los datos)
 - [could] nativo: Widgets en pantalla de inicio, no  (solo app nativa)
-- [could] avisos: Notificaciones y recordatorios, partial  (avisos dentro de la app; sin push)
+- [could] avisos: Notificaciones y recordatorios, partial  (avisos dentro de la app + push opcional con un servicio gratuito en Cloudflare (código y tests hechos; falta probarlo en el iPhone real))
 
 ## Left out on purpose (not scored)
 - Alta con Apple / Google / email: no hay cuentas: app local de uso personal
@@ -39,3 +39,7 @@ features 95.0  (32 counted, must-haves 10 of 10 done)
 ## Yours, not in the original (not scored)
 - Conexión bancaria
 - Copia JSON, protección contra el borrado de iOS y restauración desde la bienvenida
+- Movimientos con fecha futura (programados)
+- Plan de inversión mensual con confirmación una a una
+- Barra de navegación flotante
+- Aviso de versión nueva de la app

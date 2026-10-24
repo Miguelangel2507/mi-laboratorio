@@ -13,10 +13,12 @@ import AssetNew from './pages/AssetNew';
 import AssetDetail from './pages/AssetDetail';
 import NetWorth from './pages/NetWorth';
 import PlanPage from './pages/Plan';
+import AlertsPage from './pages/Alerts';
 import Settings from './pages/Settings';
 import { AccountPage, Budgets, Categories, DataPage, Goals, Preferences, Prices, Privacy, RecurringList } from './pages/SettingsPages';
 import Welcome from './pages/Welcome';
 import Lock from './pages/Lock';
+import { UpdateBanner } from './components/UpdateBanner';
 
 export default function App() {
   useInit();
@@ -41,6 +43,8 @@ export default function App() {
   if (pinHash && !unlocked) return <Lock onUnlock={() => setU(true)} />;
   if (currency === null) return <Welcome />;
   return (
+    <>
+    <UpdateBanner />
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
@@ -62,6 +66,7 @@ export default function App() {
         <Route path="settings/data" element={<DataPage />} />
         <Route path="settings/preferences" element={<Preferences />} />
         <Route path="settings/privacy" element={<Privacy />} />
+        <Route path="settings/alerts" element={<AlertsPage />} />
         <Route path="settings/account" element={<AccountPage />} />
       </Route>
       <Route path="add" element={<Add />} />
@@ -69,5 +74,6 @@ export default function App() {
       <Route path="rule/:ruleId" element={<Add />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }

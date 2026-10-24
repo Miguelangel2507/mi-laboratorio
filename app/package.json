@@ -6,10 +6,10 @@
   "scripts": {
     "tokens": "cp ../replica/design/tokens.css src/styles/tokens.css && cp ../replica/design/tailwind.preset.cjs tailwind.preset.cjs",
     "dev": "npm run tokens && vite",
-    "build": "npm run tokens && tsc -b && vite build",
+    "build": "npm run tokens && tsc -b && tsc -p tsconfig.sw.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p tsconfig.sw.json",
     "e2e": "node e2e/smoke.mjs"
   },
   "dependencies": {
@@ -33,6 +33,9 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "workbox-core": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1"
   }
 }
