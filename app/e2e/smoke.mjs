@@ -540,6 +540,68 @@ await step('interruptores nativos de iOS', async () => {
   check('no queda ninguno sin el atributo', bare === 0, String(bare));
 });
 
+await step('rendimiento mensual en Cartera', async () => {
+  const Y = new Date().getFullYear() - 1;
+  const KEY = 'FONDOREND';
+  const cell = (month, kind) => p.getByRole('listitem', { name: new RegExp(`^${month} de ${Y}: .*${kind}`) });
+  // 1) un fondo manual con compras del año pasado: 10 uds a 10 € (10 feb) y 5 a 11 € (10 mar)
+  await p.goto(BASE + '#/investments/new'); await p.waitForTimeout(400);
+  await p.getByLabel('Elige de tu hoja').selectOption({ label: 'Otra (la añado a mano)' });
+  await p.getByLabel('Nombre').fill('Fondo Rendimiento');
+  await p.getByLabel(/Código/).fill(KEY);
+  await p.getByLabel('Participaciones').fill('1');
+  await p.getByLabel('Precio medio de compra').fill('10');
+  await p.getByRole('button', { name: 'Guardar' }).click();
+  await p.waitForURL(/#\/investments\/\d+/); await p.waitForTimeout(400);
+  await p.getByRole('button', { name: 'Borrar operación' }).click(); await p.waitForTimeout(300); // la inicial, de hoy
+  for (const [date, qty, px] of [[`${Y}-02-10`, '10', '10'], [`${Y}-03-10`, '5', '11']]) {
+    await p.getByLabel('Participaciones').fill(qty); await p.getByLabel('Precio por participación').fill(px); await p.getByLabel('Fecha').fill(date);
+    await p.getByRole('button', { name: 'Guardar operación' }).click(); await p.waitForTimeout(300);
+  }
+  await p.goto(BASE + '#/investments'); await p.waitForTimeout(600);
+  check('la tarjeta circular ya no está y sí el rendimiento mensual', (await p.getByRole('heading', { name: 'Rendimiento mensual' }).count()) === 1 && (await p.locator('.recharts-wrapper').count()) === 0);
+  await p.getByRole('button', { name: 'Año anterior' }).click(); await p.waitForTimeout(300);
+  check('febrero (primera compra) rinde +0,0 y marzo +7,3 estimado con el precio de tus compras', await cell('febrero', 'estimado').getByText('+0,0').isVisible() && await cell('marzo', 'estimado').getByText('+7,3').isVisible(),
+    (await p.getByRole('listitem').allInnerTexts()).join('|').replace(/\n/g, ' ').slice(0, 200));
+  check('los meses sin datos salen vacíos', await p.getByRole('listitem', { name: new RegExp(`^enero de ${Y}: sin datos`) }).isVisible());
+  await shot('S08c-rendimiento.png');
+
+  // 2) cierres importados de la app anterior
+  fs.writeFileSync(S + '/anterior.json', JSON.stringify({ monthlyCloses: [
+    { month: `${Y}-02`, market: 100, invested: 100, perFund: {} }, { month: `${Y}-03`, market: 170, invested: 155, perFund: {} }, { month: `${Y + 1}-12`, market: 9, invested: 9, perFund: {} }] }));
+  await p.goto(BASE + '#/settings/data'); await p.waitForTimeout(500);
+  fs.writeFileSync(S + '/no-es.json', JSON.stringify({ hola: 1 }));
+  await p.getByLabel('Archivo de la app anterior').setInputFiles(S + '/no-es.json'); await p.waitForTimeout(300);
+  check('un archivo que no es de la app anterior se rechaza con un mensaje', await p.getByText(/no es una copia de la app anterior/).isVisible());
+  await p.getByLabel('Archivo de la app anterior').setInputFiles(S + '/anterior.json'); await p.waitForTimeout(400);
+  check('la vista previa trae 2 de 3 y descarta el mes sin terminar', await p.getByText('Vista previa: 2 de 3').isVisible() && await p.getByText('mes sin terminar').isVisible());
+  await p.getByRole('button', { name: 'Importar 2' }).click(); await p.waitForTimeout(400);
+  await p.goto(BASE + '#/investments'); await p.getByRole('button', { name: 'Año anterior' }).click(); await p.waitForTimeout(400);
+  check('con los dos cierres importados, marzo pasa a +10,9 como «cierre importado»', await cell('marzo', 'cierre importado').getByText('+10,9').isVisible());
+
+  // 3) fotos reales del servicio (simulado): marzo a 11 € y abril a 12 €
+  await ctx.route('https://avisos.test/snapshots', (r) => r.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'content-type': 'application/json' },
+    body: JSON.stringify({ snapshots: [{ month: `${Y}-03`, date: `${Y}-03-31`, prices: { [KEY]: 1100000 } }, { month: `${Y}-04`, date: `${Y}-04-30`, prices: { [KEY]: 1200000 } }] }) }));
+  await ctx.route('https://avisos.test/sheet', (r) => r.fulfill({ status: r.request().method() === 'OPTIONS' ? 204 : 200, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS' }, body: r.request().method() === 'OPTIONS' ? '' : '{"ok":true}' }));
+  await p.evaluate(() => new Promise((res, rej) => {
+    const r = indexedDB.open('mi-patrimonio');
+    r.onsuccess = () => { const db = r.result; const tx = db.transaction('settings', 'readwrite'); const st = tx.objectStore('settings');
+      st.put({ key: 'alerts', value: { workerUrl: 'https://avisos.test', token: 'codigo-bueno', enabled: false, hour: 9, planReminder: true, backupReminder: true } });
+      st.put({ key: 'sheetUrl', value: 'https://docs.google.com/spreadsheets/d/ID_DE_PRUEBA/edit?usp=sharing' });
+      tx.oncomplete = () => { db.close(); res(); }; tx.onerror = rej; };
+    r.onerror = rej;
+  }));
+  await p.goto(BASE + '#/settings/alerts'); await p.reload(); await p.waitForTimeout(800);
+  await p.getByRole('button', { name: 'Sincronizar ahora' }).click(); await p.waitForTimeout(800);
+  check('sincronizar trae el cierre real y lo cuenta', await p.getByText(/2 cierres reales guardados/).isVisible());
+  await p.goto(BASE + '#/investments'); await p.getByRole('button', { name: 'Año anterior' }).click(); await p.waitForTimeout(400);
+  check('abril sale +9,1 como «cierre real» (fotos de marzo 11 € y abril 12 €)', await cell('abril', 'cierre real').getByText('+9,1').isVisible(),
+    (await p.getByRole('listitem').allInnerTexts()).join('|').replace(/\n/g, ' ').slice(0, 240));
+  check('marzo (inicio importado, fin con foto real) sale +7,3 como «cierre importado»', await cell('marzo', 'cierre importado').getByText('+7,3').isVisible());
+  check('hay rentabilidad del año', (await p.getByText(`Rentabilidad ${Y}`).isVisible()));
+  await shot('S08d-rendimiento-cierres.png');
+});
+
 log('\nerrores de consola/página:', errors);
 log(fails === 0 ? '\nTODO OK' : `\n${fails} COMPROBACIONES FALLARON`);
 await b.close();

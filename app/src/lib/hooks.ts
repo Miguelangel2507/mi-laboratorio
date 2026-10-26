@@ -7,6 +7,7 @@ import { runRecurring } from './recurring';
 import { todayISO } from './domain';
 import { computeNetWorth } from './portfolio';
 import { refreshQuotesIfStale } from './quotes';
+import { syncCloses } from './closesSync';
 import { requestPersistence } from './storage';
 import { generatePlanRuns } from './plan';
 
@@ -22,6 +23,7 @@ export function useInit() {
       await generatePlanRuns(db, todayISO());
       await refreshRates();
       await refreshQuotesIfStale();
+      void syncCloses(); // best effort: si no hay servicio configurado, no hace nada
       await requestPersistence();
     })();
   }, []);

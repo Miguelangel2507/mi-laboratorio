@@ -1,5 +1,6 @@
 import { buildPushPayload, type PushSubscription } from '@block65/webcrypto-web-push';
 import { dueReminders, isValidTimeZone, sanitizeReminders, type Reminder } from './schedule';
+import { buildSnapshot, parseSheetCsv, sheetCsvUrl, snapshotWindow, type Snapshot } from './sheet';
 
 export interface Env {
   KV: KVNamespace;
@@ -78,19 +79,71 @@ export default {
       if (res.status === 404 || res.status === 410) await env.KV.delete('sub');
       return json({ ok: res.ok, pushStatus: res.status }, res.ok ? 200 : 502, h);
     }
+    if (pathname === '/sheet' && req.method === 'POST') {
+      let body: { url?: unknown; tz?: unknown };
+      try { body = await req.json(); } catch { return json({ error: 'bad json' }, 400, h); }
+      const csv = sheetCsvUrl(body.url);
+      if (!csv) return json({ error: 'bad sheet url' }, 400, h);
+      if (body.tz !== undefined && !isValidTimeZone(body.tz)) return json({ error: 'bad timezone' }, 400, h);
+      const prev = await env.KV.get<StoredSheet>('sheet', 'json');
+      await env.KV.put('sheet', JSON.stringify({ csv, tz: (body.tz as string | undefined) ?? prev?.tz ?? 'Europe/Madrid' } satisfies StoredSheet));
+      return json({ ok: true }, 200, h);
+    }
+    if (pathname === '/snapshots' && req.method === 'GET') {
+      const list = await env.KV.list({ prefix: 'snap:' });
+      const snapshots: Snapshot[] = [];
+      for (const k of list.keys) { const s = await env.KV.get<Snapshot>(k.name, 'json'); if (s) snapshots.push(s); }
+      snapshots.sort((a, b) => a.month.localeCompare(b.month));
+      return json({ snapshots }, 200, h);
+    }
+    if (pathname === '/snapshot-test' && req.method === 'POST') {
+      const sheet = await env.KV.get<StoredSheet>('sheet', 'json');
+      if (!sheet) return json({ error: 'no sheet' }, 404, h);
+      const prices = await readSheet(sheet.csv);
+      if (!prices) return json({ error: 'sheet not readable' }, 502, h);
+      return json({ ok: true, funds: prices.length, newestDate: prices.map((p) => p.date).sort().at(-1) ?? null }, 200, h);
+    }
     return json({ error: 'not found' }, 404, h);
   },
 
   async scheduled(ctrl: ScheduledController, env: Env): Promise<void> {
+    const now = new Date(ctrl.scheduledTime);
     const stored = await env.KV.get<Stored>('sub', 'json');
-    if (!stored) return;
-    const { due, local } = dueReminders(new Date(ctrl.scheduledTime), stored.tz, stored.reminders);
-    for (const r of due) {
-      const key = `sent:${r.id}:${local.date}:${local.hour}`;
-      if (await env.KV.get(key)) continue; // ya enviado esta hora
-      const res = await sendPush(env, stored.subscription, { title: 'Mi Patrimonio', body: r.text, url: r.url ?? '#/', tag: r.id });
-      if (res.status === 404 || res.status === 410) { await env.KV.delete('sub'); return; } // el móvil ya no acepta avisos
-      if (res.ok) await env.KV.put(key, '1', { expirationTtl: 3 * 86400 });
-    }
+    if (stored) await sendDueReminders(env, stored, now);
+    await takeMonthSnapshot(env, stored?.tz, now);
   },
 } satisfies ExportedHandler<Env>;
+
+async function sendDueReminders(env: Env, stored: Stored, now: Date): Promise<void> {
+  const { due, local } = dueReminders(now, stored.tz, stored.reminders);
+  for (const r of due) {
+    const key = `sent:${r.id}:${local.date}:${local.hour}`;
+    if (await env.KV.get(key)) continue; // ya enviado esta hora
+    const res = await sendPush(env, stored.subscription, { title: 'Mi Patrimonio', body: r.text, url: r.url ?? '#/', tag: r.id });
+    if (res.status === 404 || res.status === 410) { await env.KV.delete('sub'); return; } // el móvil ya no acepta avisos
+    if (res.ok) await env.KV.put(key, '1', { expirationTtl: 3 * 86400 });
+  }
+}
+
+interface StoredSheet { csv: string; tz: string }
+
+async function readSheet(csvUrl: string): Promise<ReturnType<typeof parseSheetCsv> | null> {
+  try {
+    const res = await fetch(csvUrl, { redirect: 'follow' });
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (text.trimStart().startsWith('<')) return null; // página de inicio de sesión: la hoja no es pública
+    return parseSheetCsv(text);
+  } catch { return null; }
+}
+
+/** El último día de cada mes, por la noche, guarda los precios de tu hoja: el «cierre real» del mes. */
+export async function takeMonthSnapshot(env: Env, subTz: string | undefined, now: Date): Promise<void> {
+  const sheet = await env.KV.get<StoredSheet>('sheet', 'json');
+  if (!sheet) return;
+  const win = snapshotWindow(now, sheet.tz || subTz || 'Europe/Madrid');
+  if (!win || (await env.KV.get(`snap:${win.month}`))) return;
+  const prices = await readSheet(sheet.csv);
+  const snap = prices ? buildSnapshot(prices, win, now) : null;
+  if (snap) await env.KV.put(`snap:${win.month}`, JSON.stringify(snap)); // si falla, se reintenta a la hora siguiente
+}

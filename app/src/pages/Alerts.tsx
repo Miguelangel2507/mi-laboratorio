@@ -5,6 +5,8 @@ import { DEFAULT_PLAN } from '../lib/plan';
 import { useSetting } from '../lib/hooks';
 import { isIOS, isStandalone } from '../lib/storage';
 import { generateServiceKeys, type ServiceKeys } from '../lib/vapidKeys';
+import { syncCloses, testSheetRead } from '../lib/closesSync';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { BackHeader, Field, Group, Row, Section, Skeleton, Switch } from '../components/ui';
 import type { PlanConfig } from '../lib/db';
 
@@ -17,6 +19,9 @@ export default function AlertsPage() {
   const savedKeys = useSetting<ServiceKeys | null>('alertsKeys', null);
   const [keys, setKeys] = useState<ServiceKeys | null>(null);
   const [copied, setCopied] = useState('');
+  const [closesMsg, setClosesMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const realCloses = useLiveQuery(() => db.monthCloses.where('source').equals('worker').toArray(), []);
+  const syncedAt = useSetting<string | null>('closesSyncedAt', null);
   useEffect(() => { if (saved) setCfg(saved); }, [saved]);
   // Las claves recién generadas se guardan en el móvil hasta que actives los avisos, por si la app se recarga al ir a Cloudflare.
   useEffect(() => { if (savedKeys) { setKeys(savedKeys); setCfg((c) => (c.token ? c : { ...c, token: savedKeys.token })); } }, [savedKeys]);
@@ -66,6 +71,18 @@ export default function AlertsPage() {
           <Field label="Dirección del servicio"><input className="field" inputMode="url" autoCapitalize="off" value={cfg.workerUrl} onChange={(e) => setCfg({ ...cfg, workerUrl: e.target.value })} placeholder="https://mi-patrimonio-avisos.tu-usuario.workers.dev" aria-label="Dirección del servicio" /></Field>
           <Field label="Código secreto" hint="El mismo que pusiste en Cloudflare (OWNER_TOKEN). Se guarda solo en este móvil y no entra en las copias."><input className="field" type="password" autoCapitalize="off" value={cfg.token} onChange={(e) => setCfg({ ...cfg, token: e.target.value })} aria-label="Código secreto" /></Field>
           {cfg.workerUrl && !urlOk && <p role="alert" className="text-footnote text-danger">La dirección debe empezar por https://</p>}
+        </div>
+      </Section>
+
+      <Section title="Cierres mensuales de la cartera" hint="El último día de cada mes, por la noche, el servicio lee tu hoja y guarda la foto de los precios: es el «cierre real» del Rendimiento mensual de Cartera. Funciona aunque no abras la app, y no necesita tener los avisos activados.">
+        <div className="card flex flex-col gap-3 p-4">
+          <p className="text-footnote text-text-muted">
+            Cierres reales guardados: <span className="num">{realCloses?.length ?? 0}</span>
+            {syncedAt ? ` · última sincronización ${new Date(syncedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}` : ''}
+          </p>
+          <button className="btn-secondary" disabled={busy} onClick={async () => { setBusy(true); setClosesMsg(null); const r = await testSheetRead(); setClosesMsg(r.ok ? { ok: true, text: `El servicio lee tu hoja: ${r.funds} fondos con precio${r.newestDate ? ` (el más reciente, del ${r.newestDate})` : ''}.` } : { ok: false, text: r.error }); setBusy(false); }}>Comprobar que el servicio lee mi hoja</button>
+          <button className="btn-secondary" disabled={busy} onClick={async () => { setBusy(true); setClosesMsg(null); const r = await syncCloses({ force: true }); setClosesMsg(r.ok ? { ok: true, text: `Sincronizado. ${r.total} ${r.total === 1 ? 'cierre real guardado' : 'cierres reales guardados'}.` } : { ok: false, text: r.error }); setBusy(false); }}>Sincronizar ahora</button>
+          {closesMsg && <p role={closesMsg.ok ? 'status' : 'alert'} className={`text-footnote ${closesMsg.ok ? 'text-income' : 'text-danger'}`}>{closesMsg.text}</p>}
         </div>
       </Section>
 

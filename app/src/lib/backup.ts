@@ -2,10 +2,10 @@ import type { AppDB } from './db';
 
 export const BACKUP_TABLES = [
   'settings', 'accounts', 'categories', 'transactions', 'assets', 'trades',
-  'budgets', 'goals', 'recurring', 'netWorth', 'importBatches', 'planItems', 'planRuns',
+  'budgets', 'goals', 'recurring', 'netWorth', 'importBatches', 'planItems', 'planRuns', 'monthCloses',
 ] as const;
 /** Tablas añadidas después: una copia antigua sin ellas sigue siendo válida (se restauran vacías). */
-const OPTIONAL: readonly string[] = ['planItems', 'planRuns'];
+const OPTIONAL: readonly string[] = ['planItems', 'planRuns', 'monthCloses'];
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
 export const SCHEMA_VERSION = 2;
@@ -25,6 +25,7 @@ const REQUIRED: Record<BackupTable, Record<string, 'string' | 'number' | 'boolea
   importBatches: { createdAt: 'string' },
   planItems: { assetKey: 'string', name: 'string', amountCents: 'number', startMonth: 'string' },
   planRuns: { itemId: 'number', month: 'string', dueDate: 'string', amountCents: 'number', status: 'string' },
+  monthCloses: { month: 'string', date: 'string', source: 'string' },
 };
 
 export async function exportBackup(d: AppDB, opts: { includeSheetUrl: boolean }): Promise<Backup> {

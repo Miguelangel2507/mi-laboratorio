@@ -37,3 +37,4 @@ Comprobado en Chromium con la versión antigua abierta, publicando la nueva y re
 | --- | --- | --- | --- | --- |
 | B11 | S4 | la opción «Vibración al tocar» no hacía vibrar el iPhone | lo detectó el usuario | resuelto retirando la opción: una pantalla de diagnóstico probó 6 métodos programáticos y solo vibró el interruptor nativo que toca el usuario. Apple no permite vibrar desde código web. Los interruptores de la app ahora son nativos de iOS (vibran solos) |
 
+| B12 | S08 | al mezclar una foto real con un mes estimado salía −8,3 % falso | captura del recorrido E2E | resuelto: solo se usan datos de mercado si están ambos extremos del mes; si no, todo el mes se estima |
