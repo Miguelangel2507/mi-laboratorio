@@ -24,7 +24,7 @@ export function LegacyClosesImport() {
     setMsg('');
     try {
       const parsed = parseLegacyCloses(JSON.parse(await f.text()));
-      if (!parsed) return setMsg('Ese archivo no es una copia de la app anterior: no trae cierres mensuales.');
+      if (!parsed) return setMsg('Ese archivo no es una copia de la app anterior: no trae cierres mensuales ni precios por mes.');
       if (parsed.length === 0) return setMsg('El archivo no trae ningún cierre mensual válido.');
       setList(parsed);
     } catch { setMsg('No se pudo leer ese archivo.'); }
@@ -48,7 +48,7 @@ export function LegacyClosesImport() {
               const skip = plan.skipped.find((s) => s.month === c.month);
               return (
                 <Row key={c.month} right={<span className={`text-footnote ${skip ? 'text-text-muted' : 'text-accent'}`}>{skip ? skip.reason : 'se importa'}</span>}>
-                  <span className="num block">{c.month} · {money(c.marketCents, 'EUR')}</span>
+                  <span className="num block">{c.month} · {c.prices ? `precios de ${Object.keys(c.prices).length} fondos` : money(c.marketCents ?? 0, 'EUR')}</span>
                   {c.investedCents != null && <span className="block text-footnote text-text-muted">invertido {money(c.investedCents, 'EUR')}</span>}
                 </Row>
               );
