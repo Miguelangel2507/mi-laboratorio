@@ -44,6 +44,12 @@ En el iPhone, **abriendo la app desde el icono**: Ajustes > Avisos y notificacio
 3. Pulsa **Activar avisos** y acepta el permiso.
 4. Pulsa **Enviar aviso de prueba**: debería llegarte en unos segundos. Prueba también con la app cerrada.
 
+## Cierres mensuales de la cartera
+El servicio lee tu hoja el último día de cada mes (a la hora en que corre su revisión) y guarda una foto de los precios. La app las descarga al abrirse y las usa para calcular el rendimiento mensual de Cartera.
+- En la app: Ajustes > Avisos > «Comprobar que el servicio lee mi hoja» y «Sincronizar ahora».
+- El servicio solo lee la hoja que le indica la app (siempre en docs.google.com, construida a partir de su identificador) y no guarda cantidades, solo precios.
+- Si un mes no hay foto, la app estima ese mes con el precio de tus compras y lo marca como estimado.
+
 ## Seguridad
 - Solo tu web (`ALLOWED_ORIGIN` en `wrangler.toml`) puede hablar con el servicio, y todo lo que escribe exige tu código secreto.
 - Solo se aceptan suscripciones de los servicios de push de Apple, Google, Mozilla y Microsoft.

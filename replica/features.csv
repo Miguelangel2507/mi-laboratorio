@@ -45,3 +45,4 @@ Movimientos con fecha futura (programados),movimientos,should,no,yes,no cuentan 
 Plan de inversión mensual con confirmación una a una,inversiones,must,no,yes,"añadido a petición: pendientes que no cuentan hasta confirmar; fecha, importe, precio y cuenta editables"
 Barra de navegación flotante,ajustes,could,no,yes,a petición
 Aviso de versión nueva de la app,datos,should,no,yes,banner «Hay una versión nueva»; no probado con una actualización real
+Rendimiento mensual de la cartera (Dietz modificado) con cierres reales del servicio e importación de la app anterior,inversiones,should,no,yes,sustituye al gráfico circular por decisión del usuario; meses estimados si no hay foto de precios

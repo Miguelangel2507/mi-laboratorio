@@ -52,7 +52,7 @@ export function supportProblem(): string | null {
   return null;
 }
 
-async function call(cfg: AlertsConfig, path: string, init: RequestInit = {}): Promise<Response> {
+export async function call(cfg: AlertsConfig, path: string, init: RequestInit = {}): Promise<Response> {
   const url = normalizeUrl(cfg.workerUrl);
   if (!url) throw new Error('La dirección del servicio no es válida (debe empezar por https://).');
   const headers = new Headers(init.headers);
@@ -65,7 +65,7 @@ async function call(cfg: AlertsConfig, path: string, init: RequestInit = {}): Pr
   return res;
 }
 
-const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+export const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
 async function currentSubscription(cfg: AlertsConfig, create: boolean): Promise<PushSubscription | null> {
   const reg = await navigator.serviceWorker.ready;

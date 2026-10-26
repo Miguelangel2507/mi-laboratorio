@@ -15,6 +15,7 @@ import { useFx, useMoney, useSetting } from '../lib/hooks';
 import { BackHeader, DangerButton, Field, Group, Row, Section, Skeleton, Banner, Switch, fmtDate } from '../components/ui';
 import { EmptyState } from '../components/Layout';
 import { CURRENCIES } from './Welcome';
+import { LegacyClosesImport } from './LegacyClosesImport';
 import { FREQ } from './Add';
 
 /* ---------- Categorías ---------- */
@@ -380,6 +381,8 @@ export function DataPage() {
           </div>
         </Section>
       )}
+
+      <LegacyClosesImport />
 
       {batches.length > 0 && (
         <Section title="Importaciones anteriores">

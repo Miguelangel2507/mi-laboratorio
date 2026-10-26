@@ -15,6 +15,7 @@ class FakeKV {
   async get(k: string, type?: string) { const v = this.m.get(k); return v === undefined ? null : type === 'json' ? JSON.parse(v) : v; }
   async put(k: string, v: string) { this.m.set(k, v); }
   async delete(k: string) { this.m.delete(k); }
+  async list(o: { prefix?: string }) { return { keys: [...this.m.keys()].filter((k) => k.startsWith(o.prefix ?? '')).map((name) => ({ name })) }; }
 }
 
 let env: Env & { KV: FakeKV };
@@ -199,5 +200,138 @@ describe('servicio', () => {
     const f = vi.fn(); vi.stubGlobal('fetch', f);
     await worker.scheduled({ scheduledTime: Date.now(), cron: '' } as ScheduledController, env);
     expect(f).not.toHaveBeenCalled();
+  });
+});
+
+
+import { buildSnapshot, parseSheetCsv, parseVl, sheetCsvUrl, snapshotWindow } from '../src/sheet';
+
+const CSV = [
+  '"ISIN","Nombre","VL","Fecha","",""',
+  '"IE00BYX5MX67","Fidelity S&P 500","16,83","2026-10-23","",""',
+  '"ES0110862010","Aspe Global FI B","","","",""',
+  '"N5546","Horos Internacional PPES","142,28191","2026-10-22","",""',
+  '"N5116","Azvalor","1.289,5","2026-11-02","",""',
+  '"","","","","",""',
+].join('\n');
+const SHEET = 'https://docs.google.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x-PVn5Imvh1DWfWFt8yaju9GzI/edit?usp=sharing';
+
+describe('hoja de precios', () => {
+  it('lee VL con coma decimal y puntos de millar, y omite lo manual o sin fecha', () => {
+    expect(parseVl('16,9271')).toBe(16.9271);
+    expect(parseVl('1.289,5')).toBe(1289.5);
+    expect(parseVl('')).toBeNull();
+    expect(parseVl('abc')).toBeNull();
+    expect(parseVl('0')).toBeNull();
+    const p = parseSheetCsv(CSV);
+    expect(p.map((x) => x.key)).toEqual(['IE00BYX5MX67', 'N5546', 'N5116']);
+    expect(p[0]).toEqual({ key: 'IE00BYX5MX67', priceE5: 1683000, date: '2026-10-23' });
+  });
+  it('del enlace solo toma el identificador y construye siempre una dirección de docs.google.com', () => {
+    expect(sheetCsvUrl(SHEET)).toBe('https://docs.google.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x-PVn5Imvh1DWfWFt8yaju9GzI/gviz/tq?tqx=out:csv');
+    expect(sheetCsvUrl(SHEET.replace('/edit?usp=sharing', '/edit#gid=123'))).toContain('&gid=123');
+    for (const bad of ['https://evil.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x', 'http://docs.google.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x',
+      'https://docs.google.com.evil.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x', 'https://docs.google.com/document/d/1YXFhoWvz4Q0skOrt8x', 'no', 42, null, 'https://docs.google.com/spreadsheets/d/corto']) {
+      expect(sheetCsvUrl(bad)).toBeNull();
+    }
+  });
+});
+
+describe('ventana de cierre de mes', () => {
+  it('solo el último día del mes a partir de las 21:00 locales', () => {
+    // 31 oct 2026 20:00 UTC = 21:00 en Madrid (horario de verano ya terminado el 25 oct: UTC+1)
+    expect(snapshotWindow(new Date('2026-10-31T19:59:00Z'), 'Europe/Madrid')).toBeNull(); // 20:59 local
+    expect(snapshotWindow(new Date('2026-10-31T20:00:00Z'), 'Europe/Madrid')).toMatchObject({ month: '2026-10', date: '2026-10-31' });
+    expect(snapshotWindow(new Date('2026-10-31T22:30:00Z'), 'Europe/Madrid')?.month).toBe('2026-10');
+    expect(snapshotWindow(new Date('2026-10-31T23:00:00Z'), 'Europe/Madrid')).toBeNull(); // ya es 1 nov local
+    expect(snapshotWindow(new Date('2026-10-30T21:00:00Z'), 'Europe/Madrid')).toBeNull(); // 30 oct no es el último día
+  });
+  it('febrero (también bisiesto) y meses de 30 días', () => {
+    expect(snapshotWindow(new Date('2026-02-28T21:30:00Z'), 'Europe/Madrid')?.month).toBe('2026-02');
+    expect(snapshotWindow(new Date('2028-02-28T21:30:00Z'), 'Europe/Madrid')).toBeNull();
+    expect(snapshotWindow(new Date('2028-02-29T21:30:00Z'), 'Europe/Madrid')?.month).toBe('2028-02');
+    expect(snapshotWindow(new Date('2026-04-30T20:30:00Z'), 'Europe/Madrid')?.month).toBe('2026-04'); // verano: UTC+2
+  });
+  it('respeta la zona del usuario', () => {
+    expect(snapshotWindow(new Date('2026-10-31T21:00:00Z'), 'Atlantic/Canary')?.month).toBe('2026-10'); // UTC+0 en invierno... 21:00 local
+    expect(snapshotWindow(new Date('2026-10-31T21:00:00Z'), 'America/Mexico_City')).toBeNull(); // 15:00 local
+  });
+  it('un precio con fecha posterior al cierre no entra en la foto', () => {
+    const snap = buildSnapshot(parseSheetCsv(CSV), { month: '2026-10', date: '2026-10-31' }, new Date('2026-10-31T21:00:00Z'))!;
+    expect(Object.keys(snap.prices)).toEqual(['IE00BYX5MX67', 'N5546']);
+    expect(buildSnapshot([], { month: '2026-10', date: '2026-10-31' }, new Date())).toBeNull();
+  });
+});
+
+describe('cierres mensuales en el servicio', () => {
+  const sheetFetch = (status = 200, body = CSV) => vi.fn(async () => new Response(body, { status }));
+  const setSheet = async () => { expect((await worker.fetch(req('/sheet', 'POST', { url: SHEET, tz: 'Europe/Madrid' }), env)).status).toBe(200); };
+  const sched = (iso: string) => worker.scheduled({ scheduledTime: new Date(iso).getTime(), cron: '0 * * * *' } as ScheduledController, env);
+
+  it('exige el código y solo acepta hojas de Google', async () => {
+    expect((await worker.fetch(req('/sheet', 'POST', { url: SHEET }, { origin: 'https://miguelangel2507.github.io' }), env)).status).toBe(401);
+    expect((await worker.fetch(req('/snapshots', 'GET', undefined, { origin: 'https://miguelangel2507.github.io' }), env)).status).toBe(401);
+    expect((await worker.fetch(req('/sheet', 'POST', { url: 'https://evil.com/spreadsheets/d/1YXFhoWvz4Q0skOrt8x' }), env)).status).toBe(400);
+    expect((await worker.fetch(req('/sheet', 'POST', { url: SHEET, tz: 'Marte/Olimpo' }), env)).status).toBe(400);
+    expect(env.KV.m.has('sheet')).toBe(false);
+  });
+  it('la prueba lee la hoja y dice cuántos fondos hay, sin guardar nada', async () => {
+    await setSheet();
+    vi.stubGlobal('fetch', sheetFetch());
+    const res = await worker.fetch(req('/snapshot-test', 'POST'), env);
+    expect(await res.json()).toEqual({ ok: true, funds: 3, newestDate: '2026-11-02' });
+    expect([...env.KV.m.keys()].filter((k) => k.startsWith('snap:'))).toEqual([]);
+  });
+  it('si la hoja no es pública o no responde, lo dice', async () => {
+    await setSheet();
+    vi.stubGlobal('fetch', sheetFetch(200, '<!DOCTYPE html><html>inicia sesión'));
+    expect((await worker.fetch(req('/snapshot-test', 'POST'), env)).status).toBe(502);
+    vi.stubGlobal('fetch', sheetFetch(500, ''));
+    expect((await worker.fetch(req('/snapshot-test', 'POST'), env)).status).toBe(502);
+  });
+  it('guarda la foto el último día a las 21:00, una sola vez, y la sirve', async () => {
+    await setSheet();
+    const f = sheetFetch(); vi.stubGlobal('fetch', f);
+    await sched('2026-10-31T20:00:00Z'); // 21:00 en Madrid
+    await sched('2026-10-31T21:00:00Z'); // 22:00: ya hecha
+    expect(f).toHaveBeenCalledTimes(1);
+    const res = await (await worker.fetch(req('/snapshots'), env)).json() as { snapshots: { month: string; date: string; prices: Record<string, number> }[] };
+    expect(res.snapshots).toHaveLength(1);
+    expect(res.snapshots[0]).toMatchObject({ month: '2026-10', date: '2026-10-31', prices: { IE00BYX5MX67: 1683000, N5546: 14228191 } });
+    expect(res.snapshots[0].prices.N5116).toBeUndefined(); // con fecha de noviembre
+  });
+  it('no hace nada fuera de la ventana ni sin hoja configurada', async () => {
+    const f = sheetFetch(); vi.stubGlobal('fetch', f);
+    await sched('2026-10-31T20:00:00Z'); // sin hoja
+    await setSheet();
+    await sched('2026-10-30T20:00:00Z'); // no es el último día
+    await sched('2026-10-31T19:00:00Z'); // antes de las 21:00 locales
+    expect(f).not.toHaveBeenCalled();
+  });
+  it('si la hoja falla a las 21:00, reintenta a las 22:00 y a las 23:00', async () => {
+    await setSheet();
+    let n = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => (n++ < 2 ? new Response('', { status: 503 }) : new Response(CSV))));
+    await sched('2026-10-31T20:00:00Z');
+    await sched('2026-10-31T21:00:00Z');
+    expect(env.KV.m.has('snap:2026-10')).toBe(false);
+    await sched('2026-10-31T22:00:00Z');
+    expect(env.KV.m.has('snap:2026-10')).toBe(true);
+  });
+  it('funciona aunque no haya avisos activados (sin suscripción)', async () => {
+    await setSheet();
+    expect(env.KV.m.has('sub')).toBe(false);
+    vi.stubGlobal('fetch', sheetFetch());
+    await sched('2026-10-31T20:00:00Z');
+    expect(env.KV.m.has('snap:2026-10')).toBe(true);
+  });
+  it('la hoja y las fotos no se mezclan con los avisos de plan en la misma pasada', async () => {
+    await setSheet();
+    await worker.fetch(req('/subscribe', 'POST', { subscription: subscription(), reminders: [{ id: 'plan', text: 'Hoy toca tu plan.', hour: 22, day: 31 }], tz: 'Europe/Madrid' }), env);
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => { calls.push(new URL(u).hostname); return String(u).includes('docs.google.com') ? new Response(CSV) : new Response(null, { status: 201 }); }));
+    await sched('2026-10-31T21:00:00Z'); // 22:00 locales del 31
+    expect(calls.sort()).toEqual(['docs.google.com', 'web.push.apple.com']);
+    expect(env.KV.m.has('snap:2026-10')).toBe(true);
   });
 });

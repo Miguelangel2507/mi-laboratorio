@@ -2,12 +2,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, RefreshCw } from 'lucide-react';
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
-import { db, type AssetType } from '../lib/db';
+import { db } from '../lib/db';
+import { todayISO } from '../lib/domain';
+import type { PerfInput } from '../lib/performance';
+import { MonthlyReturns } from '../components/MonthlyReturns';
 import { refreshQuotes } from '../lib/quotes';
 import { signedValue, TYPE_LABEL } from '../lib/invest';
 import { convertCents } from '../lib/fx';
-import { color } from '../lib/palette';
 import { useFx, useMoney, useNetWorth, useSetting } from '../lib/hooks';
 import { Banner, Group, Row, Section, Skeleton, pct } from '../components/ui';
 import { EmptyState, LargeTitle } from '../components/Layout';
@@ -21,6 +22,8 @@ export default function Investments() {
   const { main, result } = useNetWorth();
   const quotes = useLiveQuery(() => db.quotes.toArray(), []);
   const planItems = useLiveQuery(() => db.planItems.toArray(), []);
+  const trades = useLiveQuery(() => db.trades.toArray(), []);
+  const closes = useLiveQuery(() => db.monthCloses.toArray(), []);
   const pendingRuns = useLiveQuery(() => db.planRuns.where('status').equals('pending').count(), []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -31,16 +34,15 @@ export default function Investments() {
     setBusy(false);
   }
 
-  if (!result || !quotes || link === undefined || !planItems || pendingRuns === undefined) return <Skeleton h="h-40" />;
+  if (!result || !quotes || link === undefined || !planItems || pendingRuns === undefined || !trades || !closes) return <Skeleton h="h-40" />;
   const views = result.views;
   const toMain = (c: number, cur: string) => convertCents(c, cur, main, rates);
   const invested = views.filter((v) => v.asset.type !== 'debt' && v.asset.type !== 'other');
   const totalValue = invested.reduce((s, v) => s + (toMain(v.valueCents, v.asset.currency) ?? 0), 0);
   const totalCost = invested.reduce((s, v) => s + (toMain(v.costCents, v.asset.currency) ?? 0), 0);
   const pnl = totalValue - totalCost;
-  const byType = new Map<AssetType, number>();
-  for (const v of views) if (v.asset.type !== 'debt') byType.set(v.asset.type, (byType.get(v.asset.type) ?? 0) + (toMain(v.valueCents, v.asset.currency) ?? 0));
-  const slices = [...byType.entries()].filter(([, x]) => x > 0).sort((a, b) => b[1] - a[1]);
+  const valueOf = new Map(views.map((v) => [v.asset.id!, v.valueCents]));
+  const perf: PerfInput = { assets: views.map((v) => v.asset), trades, closes, today: todayISO(), currentValueCents: (a) => valueOf.get(a.id!) ?? 0 };
   const fresh = quotes.length ? quotes.reduce((m, q) => (q.fetchedAt > m ? q.fetchedAt : m), '') : '';
 
   return (
@@ -78,20 +80,7 @@ export default function Investments() {
             </p>
           </div>
 
-          {slices.length > 0 && (
-            <div className="card mb-6 mt-3 flex items-center gap-4 p-4">
-              <div className="size-28 shrink-0" aria-hidden="true">
-                <ResponsiveContainer><PieChart><Pie data={slices.map(([t, v]) => ({ name: TYPE_LABEL[t], value: v }))} dataKey="value" innerRadius="55%" outerRadius="95%" stroke="none" isAnimationActive={false}>
-                  {slices.map((_, i) => <Cell key={i} fill={color(i)} />)}</Pie></PieChart></ResponsiveContainer>
-              </div>
-              <ul className="min-w-0 flex-1 text-footnote">
-                {slices.map(([t, v], i) => {
-                  const sum = slices.reduce((s, [, x]) => s + x, 0);
-                  return <li key={t} className="flex items-center justify-between gap-2 py-0.5"><span className="flex items-center gap-2"><i className="size-2.5 rounded-pill" style={{ background: color(i) }} />{TYPE_LABEL[t]}</span><span className="num">{Math.round((v / sum) * 100)} %</span></li>;
-                })}
-              </ul>
-            </div>
-          )}
+          <MonthlyReturns input={perf} />
 
           <Section title="Posiciones">
             <Group>

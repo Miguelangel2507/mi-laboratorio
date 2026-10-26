@@ -20,3 +20,4 @@ Manual, en el iPhone real (no se puede automatizar aquí):
 8. Avisos: seguir `worker/README.md`, activar los avisos y pulsar «Enviar aviso de prueba» con la app cerrada.
 9. Actualización: tras publicar una versión nueva, abrir la app (puede verse la anterior), cerrarla y reabrirla: debe salir la nueva sin pasos extra. Con la app ya abierta, la siguiente versión debe mostrar el banner «Hay una versión nueva · Actualizar».
 10. Interruptores: se ven como los de iOS y vibran al tocarlos (la vibración programática de los botones se probó y no funciona en iOS 26/27, ver `replica/bugs.md`).
+11. Rendimiento mensual: importar los cierres de la app anterior, comprobar con «Sincronizar ahora» que llegan las fotos del servicio, y que los meses se marcan reales, importados o estimados.

@@ -29,3 +29,7 @@ Limitaciones conocidas
 - El PIN bloquea la interfaz pero no cifra IndexedDB.
 - Frankfurter (BCE) no se pudo probar desde este entorno; la app funciona sin él si todo está en la moneda principal.
 - Los precios de la hoja no incluyen divisa: los fondos de la hoja se asumen en EUR.
+
+## Rendimiento mensual (Cartera)
+Se sustituye el gráfico circular por una cuadrícula 4×3 de rentabilidad mensual (Dietz modificado; el año compone los meses). Los cierres reales los toma el Cloudflare Worker el último día de cada mes y la app los sincroniza al abrirse; los de la app anterior se importan desde Ajustes > Copia. Regla: solo se usan datos de mercado si existen en ambos extremos del mes; si no, el mes entero se estima con el precio de tus compras (evita rentabilidades falsas al mezclar fuentes). Los totales importados solo se aceptan si están entre el 90 % y el 125 % de lo invertido.
+Pruebas: 99 unitarias en la app, 28 en el servicio y el recorrido E2E ampliado.

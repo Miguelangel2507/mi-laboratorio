@@ -40,6 +40,15 @@ export interface PlanRun {
   status: 'pending' | 'confirmed' | 'skipped'; tradeId?: number; txId?: number; confirmedAt?: string;
 }
 export interface PlanConfig { day: number; accountId: number | null; active: boolean }
+/**
+ * Cierre de un mes de la cartera de inversión.
+ * - prices (E5 por clave de fondo): foto de los precios al acabar el mes; el valor se calcula con tus participaciones de entonces.
+ * - marketCents: valor total ya calculado (cierres importados de otra app, sin detalle por fondo).
+ */
+export interface MonthClose {
+  id?: number; month: string; date: string; source: 'worker' | 'import' | 'app';
+  prices?: Record<string, number>; marketCents?: number; investedCents?: number;
+}
 export interface Quote { key: string; name: string; priceE5: number | null; priceDate: string | null; fetchedAt: string }
 
 class AppDB extends Dexie {
@@ -58,6 +67,7 @@ class AppDB extends Dexie {
   importBatches!: Table<ImportBatch, number>;
   planItems!: Table<PlanItem, number>;
   planRuns!: Table<PlanRun, number>;
+  monthCloses!: Table<MonthClose, number>;
 
   constructor(name = 'mi-patrimonio') {
     super(name);
@@ -81,6 +91,9 @@ class AppDB extends Dexie {
     this.version(3).stores({
       planItems: '++id, assetKey, active',
       planRuns: '++id, status, dueDate, &[itemId+month]',
+    });
+    this.version(4).stores({
+      monthCloses: '++id, &month, source',
     });
   }
 }
