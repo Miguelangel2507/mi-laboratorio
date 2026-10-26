@@ -75,7 +75,7 @@ function plausible(input: PerfInput, month: string, cents: number): boolean {
 /** Valor de mercado al cierre de un mes: una foto real de precios, o un total importado que cuadra. null si no hay. */
 export function marketClose(input: PerfInput, month: string): { cents: number; kind: 'real' | 'imported' } | null {
   const close = input.closes.find((c) => c.month === month);
-  if (close?.prices) return { cents: valueAt(input, monthEndDate(month), close.prices), kind: 'real' };
+  if (close?.prices) return { cents: valueAt(input, monthEndDate(month), close.prices), kind: close.source === 'import' ? 'imported' : 'real' };
   if (close?.marketCents != null && plausible(input, month, close.marketCents)) return { cents: close.marketCents, kind: 'imported' };
   return null;
 }

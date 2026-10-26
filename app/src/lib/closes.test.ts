@@ -82,4 +82,14 @@ describe('copia de seguridad con cierres', () => {
     await restoreBackup(e, b);
     expect(await e.monthCloses.count()).toBe(0);
   });
+
+  it('lee también los precios por fondo y mes (`snapshots`) de la app anterior', async () => {
+    const l = parseLegacyCloses({ snapshots: { '2026-06': { IE1: 16.0779, N5546: 143.45525, MAL: -1 }, '2026-13': { A: 1 }, '2026-07': {} } });
+    expect(l).toEqual([{ month: '2026-06', marketCents: null, investedCents: null, prices: { IE1: 1607790, N5546: 14345525 } }]);
+    const d = new AppDB('snap-legacy');
+    await applyLegacyCloses(d, l!, '2026-10-26');
+    expect(await d.monthCloses.toArray()).toMatchObject([{ month: '2026-06', source: 'import', date: '2026-06-30', prices: { IE1: 1607790 } }]);
+    expect((await d.monthCloses.toArray())[0].marketCents).toBeUndefined();
+    await d.delete();
+  });
 });
