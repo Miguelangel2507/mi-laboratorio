@@ -5,7 +5,7 @@ import { DEFAULT_PLAN } from '../lib/plan';
 import { useSetting } from '../lib/hooks';
 import { isIOS, isStandalone } from '../lib/storage';
 import { generateServiceKeys, type ServiceKeys } from '../lib/vapidKeys';
-import { BackHeader, Field, Group, Row, Section, Skeleton } from '../components/ui';
+import { BackHeader, Field, Group, Row, Section, Skeleton, Switch } from '../components/ui';
 import type { PlanConfig } from '../lib/db';
 
 export default function AlertsPage() {
@@ -72,9 +72,9 @@ export default function AlertsPage() {
       <Section title="3. Qué avisar">
         <Group>
           <label className="flex min-h-tap items-center justify-between px-4"><span>El día de tu plan de inversión{plan.active ? ` (día ${plan.day})` : ' (plan desactivado)'}</span>
-            <input type="checkbox" role="switch" className="size-6" checked={cfg.planReminder} onChange={(e) => setCfg({ ...cfg, planReminder: e.target.checked })} aria-label="Avisar el día del plan" /></label>
+            <Switch checked={cfg.planReminder} onChange={(e) => setCfg({ ...cfg, planReminder: e.target.checked })} aria-label="Avisar el día del plan" /></label>
           <label className="flex min-h-tap items-center justify-between px-4"><span>Copia de seguridad cada domingo</span>
-            <input type="checkbox" role="switch" className="size-6" checked={cfg.backupReminder} onChange={(e) => setCfg({ ...cfg, backupReminder: e.target.checked })} aria-label="Avisar de la copia" /></label>
+            <Switch checked={cfg.backupReminder} onChange={(e) => setCfg({ ...cfg, backupReminder: e.target.checked })} aria-label="Avisar de la copia" /></label>
           <label className="flex min-h-tap items-center justify-between px-4"><span>Hora del aviso</span>
             <select className="bg-transparent text-text-muted outline-none" value={cfg.hour} onChange={(e) => setCfg({ ...cfg, hour: Number(e.target.value) })} aria-label="Hora del aviso">
               {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>)}

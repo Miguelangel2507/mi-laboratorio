@@ -10,10 +10,9 @@ import { toCents } from '../lib/money';
 import { exportBackup, restoreBackup, summarizeBackup, validateBackup, wipeAll, type Backup } from '../lib/backup';
 import { aiInstructions, commitImport, CSV_TEMPLATE, MAX_IMPORT_ROWS, parseImport, transactionsToCsv, undoImport, type ImportRow } from '../lib/csvio';
 import { checkPin, clearPin, setPin } from '../lib/lock';
-import { tap } from '../lib/haptics';
 import { download, fmtBytes, requestPersistence, shareOrDownload, storageStatus, type StorageStatus } from '../lib/storage';
 import { useFx, useMoney, useSetting } from '../lib/hooks';
-import { BackHeader, DangerButton, Field, Group, Row, Section, Skeleton, Banner, fmtDate } from '../components/ui';
+import { BackHeader, DangerButton, Field, Group, Row, Section, Skeleton, Banner, Switch, fmtDate } from '../components/ui';
 import { EmptyState } from '../components/Layout';
 import { CURRENCIES } from './Welcome';
 import { FREQ } from './Add';
@@ -114,7 +113,7 @@ export function Budgets() {
         <Field label="Categoría"><select className="field" value={catId} onChange={(e) => setCatId(e.target.value === '' ? '' : Number(e.target.value))}><option value="">Elige…</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
         <Field label="Periodo"><select className="field" value={period} onChange={(e) => setPeriod(e.target.value as typeof period)}><option value="week">Semanal</option><option value="month">Mensual</option><option value="year">Anual</option></select></Field>
         <Field label={`Límite (${main})`}><input className="field num" inputMode="decimal" value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
-        <label className="flex min-h-tap items-center justify-between"><span>Acumular lo que sobra</span><input type="checkbox" role="switch" className="size-6" checked={rollover} onChange={(e) => setRollover(e.target.checked)} /></label>
+        <label className="flex min-h-tap items-center justify-between"><span>Acumular lo que sobra</span><Switch checked={rollover} onChange={(e) => setRollover(e.target.checked)} /></label>
         {error && <p role="alert" className="text-footnote text-danger">{error}</p>}
         <button className="btn-primary" type="submit">Crear presupuesto</button>
       </form>
@@ -314,7 +313,7 @@ export function DataPage() {
       <Section title="Copia de seguridad (JSON)" hint={last ? `Última copia: ${new Date(last).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Aún no has hecho ninguna copia.'}>
         <div className="card flex flex-col gap-3 p-4">
           <p className="text-footnote text-text-muted">Incluye cuentas, movimientos, inversiones, presupuestos, metas y recurrentes. Es la única copia de tus datos: hazla cada pocas semanas.</p>
-          <label className="flex min-h-tap items-center justify-between"><span>Incluir el enlace de mi hoja</span><input type="checkbox" role="switch" className="size-6" checked={includeUrl} onChange={(e) => setIncludeUrl(e.target.checked)} /></label>
+          <label className="flex min-h-tap items-center justify-between"><span>Incluir el enlace de mi hoja</span><Switch checked={includeUrl} onChange={(e) => setIncludeUrl(e.target.checked)} /></label>
           <button className="btn-primary" onClick={doExport}>Guardar copia</button>
           <button className="btn-secondary" onClick={() => file.current?.click()}>Restaurar desde un archivo…</button>
           <input ref={file} type="file" accept="application/json,.json" hidden aria-label="Archivo de copia" onChange={(e) => { void pickJson(e.target.files?.[0]); e.target.value = ''; }} />
@@ -402,7 +401,6 @@ export function DataPage() {
 export function Preferences() {
   const theme = useSetting<string>('theme', 'auto') ?? 'auto';
   const currency = useSetting<string>('currency', 'EUR') ?? 'EUR';
-  const haptics = useSetting<boolean>('haptics', false) ?? false;
   return (
     <>
       <BackHeader title="Preferencias" to="/settings" />
@@ -412,12 +410,8 @@ export function Preferences() {
         <label className="flex min-h-tap items-center justify-between px-4"><span>Tema</span>
           <select className="bg-transparent text-text-muted outline-none" value={theme} onChange={(e) => setSetting('theme', e.target.value)}>
             <option value="auto">Automático</option><option value="light">Claro</option><option value="dark">Oscuro</option></select></label>
-        <label className="flex min-h-tap items-center justify-between px-4"><span>Vibración al tocar (experimental)</span>
-          <input type="checkbox" role="switch" className="size-6" checked={haptics} onChange={(e) => { void setSetting('haptics', e.target.checked); }} aria-label="Vibración al tocar" /></label>
-        {haptics && <Row onClick={() => tap()} right={<span className="text-accent">Probar</span>}>Probar el toque</Row>}
-        {haptics && <Row to="/settings/haptics-test">Diagnóstico de vibración</Row>}
       </Group>
-      <p className="mt-3 text-footnote text-text-muted">Para que el <strong>teclado</strong> vibre al escribir, actívalo en el iPhone: Ajustes &gt; Sonidos y vibración &gt; Respuesta del teclado &gt; Vibración. La vibración de los botones depende de tu versión de iOS y de que la «Respuesta háptica del sistema» esté activada en esos mismos ajustes.</p>
+      <p className="mt-3 text-footnote text-text-muted">Los interruptores de la app son los de iOS y vibran al tocarlos. Para que el <strong>teclado</strong> vibre al escribir, actívalo en el iPhone: Ajustes &gt; Sonidos y vibración &gt; Respuesta del teclado &gt; Vibración.</p>
       <p className="mt-3 text-footnote text-text-muted">Cambiar la moneda principal no modifica tus cuentas: solo cómo se suman los totales.</p>
     </>
   );
@@ -434,7 +428,7 @@ export function Privacy() {
     <>
       <BackHeader title="Privacidad y bloqueo" to="/settings" />
       <Group>
-        <label className="flex min-h-tap items-center justify-between px-4"><span>Ocultar saldos</span><input type="checkbox" role="switch" className="size-6" checked={hide} onChange={(e) => setSetting('hideBalances', e.target.checked)} /></label>
+        <label className="flex min-h-tap items-center justify-between px-4"><span>Ocultar saldos</span><Switch checked={hide} onChange={(e) => setSetting('hideBalances', e.target.checked)} /></label>
       </Group>
       <h2 className="mb-2 mt-6 text-footnote uppercase tracking-wide text-text-muted">Bloqueo con PIN</h2>
       <div className="card flex flex-col gap-3 p-4">

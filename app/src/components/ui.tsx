@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -90,3 +90,8 @@ export function Banner({ children, tone = 'info', action }: { children: ReactNod
 
 export const fmtDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 export const pct = (x: number | null, digits = 1) => (x === null ? '—' : `${x >= 0 ? '+' : ''}${(x * 100).toFixed(digits).replace('.', ',')} %`);
+
+/** En iOS (17.4 o superior) se ve y se comporta como un interruptor nativo, con su toque háptico; en el resto, como una casilla. */
+export function Switch(props: Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'role'>) {
+  return <input type="checkbox" role="switch" {...{ switch: '' }} {...props} />;
+}
