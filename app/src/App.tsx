@@ -14,19 +14,16 @@ import AssetDetail from './pages/AssetDetail';
 import NetWorth from './pages/NetWorth';
 import PlanPage from './pages/Plan';
 import AlertsPage from './pages/Alerts';
-import HapticsTest from './pages/HapticsTest';
 import Settings from './pages/Settings';
 import { AccountPage, Budgets, Categories, DataPage, Goals, Preferences, Prices, Privacy, RecurringList } from './pages/SettingsPages';
 import Welcome from './pages/Welcome';
 import Lock from './pages/Lock';
 import { UpdateBanner } from './components/UpdateBanner';
-import { useHaptics } from './lib/haptics';
 
 export default function App() {
   useInit();
   useTheme();
   usePendingBadge();
-  useHaptics();
   const currency = useSetting<string | null>('currency', null);
   const pinHash = useSetting<string | null>('pinHash', null);
   const [unlocked, setU] = useState(isUnlocked());
@@ -70,7 +67,6 @@ export default function App() {
         <Route path="settings/preferences" element={<Preferences />} />
         <Route path="settings/privacy" element={<Privacy />} />
         <Route path="settings/alerts" element={<AlertsPage />} />
-        <Route path="settings/haptics-test" element={<HapticsTest />} />
         <Route path="settings/account" element={<AccountPage />} />
       </Route>
       <Route path="add" element={<Add />} />

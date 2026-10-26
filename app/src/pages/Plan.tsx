@@ -7,7 +7,7 @@ import { parseDecimal, toCents } from '../lib/money';
 import { confirmRun, DEFAULT_PLAN, dueDateFor, generatePlanRuns, nextStartMonth, reopenRun, skipRun, undoRun } from '../lib/plan';
 import { useMoney, useSetting } from '../lib/hooks';
 import { syncRemindersIfEnabled } from '../lib/alerts';
-import { Banner, BackHeader, Field, Group, Row, Section, Skeleton, fmtDate } from '../components/ui';
+import { Banner, BackHeader, Field, Group, Row, Section, Skeleton, Switch, fmtDate } from '../components/ui';
 
 const fmtPrice = (e5: number) => (e5 / 1e5).toString().replace('.', ',');
 const monthName = (m: string) => new Date(`${m}-01T12:00:00`).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
@@ -154,7 +154,7 @@ export default function PlanPage() {
         <Group>
           <label className="flex min-h-tap items-center justify-between px-4">
             <span>Plan activo</span>
-            <input type="checkbox" role="switch" className="size-6" checked={cfg.active} onChange={(e) => saveCfg({ ...cfg, active: e.target.checked })} />
+            <Switch checked={cfg.active} onChange={(e) => saveCfg({ ...cfg, active: e.target.checked })} />
           </label>
           <label className="flex min-h-tap items-center justify-between gap-3 px-4">
             <span>Día del mes</span>

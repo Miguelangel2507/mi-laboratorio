@@ -526,50 +526,18 @@ await step('avisos: permiso, suscripción y envío al servicio (simulado)', asyn
   check('se pueden desactivar', await p.getByText('Avisos desactivados.').isVisible());
 });
 
-await step('vibración al tocar (opcional)', async () => {
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(500);
-  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
-  await p.getByRole('link', { name: 'Ajustes' }).first().click().catch(() => {}); // un toque cualquiera con la opción apagada
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
-  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
-  await p.getByRole('tab').first().click({ timeout: 500 }).catch(() => {});
-  await p.getByRole('link', { name: 'Inicio' }).click(); await p.waitForTimeout(200);
-  check('apagada por defecto: ningún toque vibra', (await p.evaluate(() => window.__vib.length)) === 0);
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
-  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(500);
-  await p.evaluate(() => { window.__vib = []; navigator.vibrate = (ms) => { window.__vib.push(ms); return true; }; });
-  await p.getByRole('link', { name: 'Estadísticas' }).click(); await p.waitForTimeout(200);
-  await p.getByRole('button', { name: 'Añadir movimiento' }).click(); await p.waitForTimeout(300);
-  check('activada: cada toque en un botón o enlace vibra', (await p.evaluate(() => window.__vib.length)) >= 2, String(await p.evaluate(() => window.__vib.length)));
-  await p.getByRole('button', { name: 'Cancelar' }).click(); await p.waitForTimeout(300);
-  // iPhone: sin Vibration API se usa el interruptor nativo oculto
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(500);
-  await p.evaluate(() => { Object.defineProperty(navigator, 'vibrate', { value: undefined, configurable: true }); });
-  await p.getByRole('link', { name: 'Inicio' }).click(); await p.waitForTimeout(200);
-  const sw1 = await p.evaluate(() => { const i = document.querySelector('label[data-haptic-ignore] input[switch]'); return i ? i.checked : null; });
-  await p.getByRole('link', { name: 'Cartera' }).click(); await p.waitForTimeout(200);
-  const sw2 = await p.evaluate(() => document.querySelector('label[data-haptic-ignore] input[switch]')?.checked);
-  check('sin Vibration API (iPhone): se crea el interruptor oculto y se acciona en cada toque', sw1 !== null && sw1 !== sw2, `${sw1} -> ${sw2}`);
-  check('el interruptor oculto no es visible ni lo lee el lector de pantalla', await p.evaluate(() => { const l = document.querySelector('label[data-haptic-ignore]'); return l.getAttribute('aria-hidden') === 'true' && getComputedStyle(l).opacity === '0'; }));
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
-  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(400);
-});
 
-await step('diagnóstico de vibración', async () => {
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
-  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(500);
-  await p.getByRole('link', { name: 'Diagnóstico de vibración' }).click(); await p.waitForTimeout(500);
-  check('la pantalla de diagnóstico se abre', await p.getByRole('heading', { name: 'Diagnóstico de vibración' }).isVisible());
-  for (const k of ['A', 'B', 'C', 'D']) await p.getByRole('button', { name: new RegExp(`^${k} ·`) }).click();
-  await p.getByRole('button', { name: /^E ·/ }).dispatchEvent('pointerdown');
-  await p.getByRole('button', { name: /^F ·/ }).click(); await p.waitForTimeout(300);
-  const t = (await p.locator('main').innerText());
-  check('los métodos A–E se ejecutan sin error', (t.match(/ejecutado/g) ?? []).length === 5, t.slice(0, 400));
-  check('F informa si existe la API de vibración', /devuelve|no existe/.test(t));
-  check('muestra el interruptor nativo para tocar a mano', await p.getByLabel('Interruptor de prueba').isVisible());
-  check('los interruptores temporales no se quedan en la página', (await p.evaluate(() => document.querySelectorAll('label[aria-hidden="true"] input[switch]').length)) <= 1);
-  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
-  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(400);
+
+await step('interruptores nativos de iOS', async () => {
+  await p.goto(BASE + '#/investments/plan'); await p.waitForTimeout(500);
+  const n = await p.locator('input[type="checkbox"][role="switch"][switch]').count();
+  check('«Plan activo» es un interruptor nativo (atributo switch)', n >= 1, String(n));
+  await p.goto(BASE + '#/settings/privacy'); await p.waitForTimeout(400);
+  check('«Ocultar saldos» también', (await p.locator('input[role="switch"][switch]').count()) >= 1);
+  await p.goto(BASE + '#/settings/alerts'); await p.waitForTimeout(500);
+  check('y los 2 de Avisos', (await p.locator('input[role="switch"][switch]').count()) === 2);
+  const bare = await p.evaluate(() => [...document.querySelectorAll('input[role="switch"]')].filter((i) => !i.hasAttribute('switch')).length);
+  check('no queda ninguno sin el atributo', bare === 0, String(bare));
 });
 
 log('\nerrores de consola/página:', errors);
