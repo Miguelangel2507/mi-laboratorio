@@ -555,6 +555,23 @@ await step('vibración al tocar (opcional)', async () => {
   await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(400);
 });
 
+await step('diagnóstico de vibración', async () => {
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
+  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(500);
+  await p.getByRole('link', { name: 'Diagnóstico de vibración' }).click(); await p.waitForTimeout(500);
+  check('la pantalla de diagnóstico se abre', await p.getByRole('heading', { name: 'Diagnóstico de vibración' }).isVisible());
+  for (const k of ['A', 'B', 'C', 'D']) await p.getByRole('button', { name: new RegExp(`^${k} ·`) }).click();
+  await p.getByRole('button', { name: /^E ·/ }).dispatchEvent('pointerdown');
+  await p.getByRole('button', { name: /^F ·/ }).click(); await p.waitForTimeout(300);
+  const t = (await p.locator('main').innerText());
+  check('los métodos A–E se ejecutan sin error', (t.match(/ejecutado/g) ?? []).length === 5, t.slice(0, 400));
+  check('F informa si existe la API de vibración', /devuelve|no existe/.test(t));
+  check('muestra el interruptor nativo para tocar a mano', await p.getByLabel('Interruptor de prueba').isVisible());
+  check('los interruptores temporales no se quedan en la página', (await p.evaluate(() => document.querySelectorAll('label[aria-hidden="true"] input[switch]').length)) <= 1);
+  await p.goto(BASE + '#/settings/preferences'); await p.waitForTimeout(400);
+  await p.getByLabel('Vibración al tocar').click(); await p.waitForTimeout(400);
+});
+
 log('\nerrores de consola/página:', errors);
 log(fails === 0 ? '\nTODO OK' : `\n${fails} COMPROBACIONES FALLARON`);
 await b.close();

@@ -415,6 +415,7 @@ export function Preferences() {
         <label className="flex min-h-tap items-center justify-between px-4"><span>Vibración al tocar (experimental)</span>
           <input type="checkbox" role="switch" className="size-6" checked={haptics} onChange={(e) => { void setSetting('haptics', e.target.checked); }} aria-label="Vibración al tocar" /></label>
         {haptics && <Row onClick={() => tap()} right={<span className="text-accent">Probar</span>}>Probar el toque</Row>}
+        {haptics && <Row to="/settings/haptics-test">Diagnóstico de vibración</Row>}
       </Group>
       <p className="mt-3 text-footnote text-text-muted">Para que el <strong>teclado</strong> vibre al escribir, actívalo en el iPhone: Ajustes &gt; Sonidos y vibración &gt; Respuesta del teclado &gt; Vibración. La vibración de los botones depende de tu versión de iOS y de que la «Respuesta háptica del sistema» esté activada en esos mismos ajustes.</p>
       <p className="mt-3 text-footnote text-text-muted">Cambiar la moneda principal no modifica tus cuentas: solo cómo se suman los totales.</p>

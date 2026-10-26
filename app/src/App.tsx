@@ -14,6 +14,7 @@ import AssetDetail from './pages/AssetDetail';
 import NetWorth from './pages/NetWorth';
 import PlanPage from './pages/Plan';
 import AlertsPage from './pages/Alerts';
+import HapticsTest from './pages/HapticsTest';
 import Settings from './pages/Settings';
 import { AccountPage, Budgets, Categories, DataPage, Goals, Preferences, Prices, Privacy, RecurringList } from './pages/SettingsPages';
 import Welcome from './pages/Welcome';
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="settings/preferences" element={<Preferences />} />
         <Route path="settings/privacy" element={<Privacy />} />
         <Route path="settings/alerts" element={<AlertsPage />} />
+        <Route path="settings/haptics-test" element={<HapticsTest />} />
         <Route path="settings/account" element={<AccountPage />} />
       </Route>
       <Route path="add" element={<Add />} />
